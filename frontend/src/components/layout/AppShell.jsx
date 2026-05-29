@@ -1,0 +1,41 @@
+import { Outlet, useLocation } from 'react-router-dom'
+import { Sidebar } from './Sidebar.jsx'
+import { Header } from './Header.jsx'
+
+const PAGE_TITLES = {
+  '/dashboard':                   'Tổng quan BSC-KPI',
+  '/assessment':                  'B1 · Đánh giá hiện trạng',
+  '/strategy-build/swot':         'B2 · Phân tích SWOT',
+  '/strategy-build/formulate':    'B2 · Xây dựng Chiến lược',
+  '/strategy-results/selection':  'B3 · Lựa chọn Chiến lược',
+  '/strategy-results/outcomes':   'B3 · Kết quả Chiến lược',
+  '/strategy-map/perspectives':   'B4 · Thành phần BSC',
+  '/strategy-map/company':        'B4 · Bản đồ Chiến lược',
+  '/fishbone':                    'B5 · Mô hình Xương cá',
+  '/kpi-setup':                   'B6 · Đo lường & Chỉ tiêu KPI',
+  '/weight-allocation':           'B7 · Phân bổ Tỉ trọng',
+  '/action-plan':                 'B8 · Action Plan',
+  '/kpi-entry':                   'Nhập liệu KPI',
+  '/reports':                     'Báo cáo & Phân tích',
+}
+
+function getTitle(pathname) {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
+  const match = Object.entries(PAGE_TITLES).find(([k]) => pathname.startsWith(k))
+  return match ? match[1] : 'BSC-KPI'
+}
+
+export function AppShell() {
+  const { pathname } = useLocation()
+  return (
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Header title={getTitle(pathname)} />
+        <main className="flex-1 overflow-y-auto p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}
