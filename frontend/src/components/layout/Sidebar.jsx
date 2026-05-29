@@ -120,15 +120,14 @@ export function Sidebar() {
       {/* Logo */}
       <div className={clsx(
         'flex items-center h-16 px-4 border-b border-slate-700/60 shrink-0',
-        sidebarCollapsed ? 'justify-center' : 'gap-3'
+        sidebarCollapsed ? 'justify-center' : 'gap-1'
       )}>
-        <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/30">
-          <span className="text-white font-bold text-sm">B</span>
+        <div className="w-16 h-16 flex items-center justify-center shrink-0 -ml-2">
+          <img src="/logoSkill.png" alt="SkillForge Logo" className="w-full h-full object-contain scale-125" />
         </div>
         {!sidebarCollapsed && (
           <div className="min-w-0">
-            <div className="font-bold text-sm leading-tight text-white">BSC-KPI</div>
-            <div className="text-slate-400 text-xs truncate">toppion.com.vn</div>
+            <div className="font-bold text-sm leading-tight text-white -ml-1">SkillForge</div>
           </div>
         )}
       </div>

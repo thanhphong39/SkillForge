@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar.jsx'
 import { Header } from './Header.jsx'
 
 const PAGE_TITLES = {
-  '/dashboard':                   'Tổng quan BSC-KPI',
+  '/dashboard':                   'Tổng quan SkillForge',
   '/assessment':                  'B1 · Đánh giá hiện trạng',
   '/strategy-build/swot':         'B2 · Phân tích SWOT',
   '/strategy-build/formulate':    'B2 · Xây dựng Chiến lược',
@@ -22,7 +22,7 @@ const PAGE_TITLES = {
 function getTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
   const match = Object.entries(PAGE_TITLES).find(([k]) => pathname.startsWith(k))
-  return match ? match[1] : 'BSC-KPI'
+  return match ? match[1] : 'SkillForge'
 }
 
 export function AppShell() {

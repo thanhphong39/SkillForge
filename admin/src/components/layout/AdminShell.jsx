@@ -23,11 +23,11 @@ export function AdminShell() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <aside className={clsx('flex flex-col bg-slate-900 text-white transition-all duration-300 flex-shrink-0', collapsed ? 'w-16' : 'w-60')}>
-        <div className={clsx('flex items-center h-16 px-4 border-b border-slate-700', collapsed ? 'justify-center' : 'gap-2')}>
-          <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">A</span>
+        <div className={clsx('flex items-center h-16 px-4 border-b border-slate-700', collapsed ? 'justify-center' : 'gap-1')}>
+          <div className="w-16 h-16 flex items-center justify-center flex-shrink-0 -ml-2">
+            <img src="/logoSkill.png" alt="SkillForge Logo" className="w-full h-full object-contain scale-125" />
           </div>
-          {!collapsed && <div><div className="font-bold text-sm">Admin Panel</div><div className="text-slate-400 text-xs">BSC-KPI System</div></div>}
+          {!collapsed && <div className="-ml-1"><div className="font-bold text-sm">SkillForge</div><div className="text-slate-400 text-xs">Admin Panel</div></div>}
         </div>
         <nav className="flex-1 py-4 space-y-1 px-2">
           {NAV.map(({ to, icon: Icon, label }) => (

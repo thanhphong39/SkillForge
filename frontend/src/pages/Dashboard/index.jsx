@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const { activePeriod } = useUIStore()
   return (
     <div>
-      <PageHeader title="Tổng quan BSC-KPI" subtitle={`Kỳ đánh giá: ${activePeriod}`} />
+      <PageHeader title="Tổng quan SkillForge" subtitle={`Kỳ đánh giá: ${activePeriod}`} />
 
       {/* 4 Perspective cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
