@@ -2,7 +2,6 @@ import { X } from 'lucide-react'
 import { useStrategyStore } from '../../store/strategyStore.js'
 import { useKPIStore } from '../../store/kpiStore.js'
 import { useUIStore } from '../../store/uiStore.js'
-import { OBJ_MAP } from '../../data/mockStrategicObjectives.js'
 import { PERSPECTIVE_MAP } from '../../constants/bsc.js'
 import { calcCompletion, getRating } from '../../constants/kpiRating.js'
 import { RatingBadge } from '../../components/ui/RatingBadge.jsx'
@@ -10,9 +9,12 @@ import { ProgressBar } from '../../components/ui/ProgressBar.jsx'
 import { formatNumber } from '../../utils/formatters.js'
 
 export function ObjectiveDetail({ objectiveId, onClose }) {
+  const { strategySets, activeStrategyId } = useStrategyStore()
   const { kpis, results } = useKPIStore()
   const { activePeriod } = useUIStore()
-  const obj = OBJ_MAP[objectiveId]
+
+  const activeStrategy = strategySets.find(s => s.id === activeStrategyId) ?? strategySets[0]
+  const obj = activeStrategy?.objectives.find(o => o.id === objectiveId)
   if (!obj) return null
 
   const perspective = PERSPECTIVE_MAP[obj.perspective]

@@ -11,7 +11,11 @@ const LANE_Y = {
 const LANE_HEIGHT = 200
 
 export function useStrategyMap() {
-  const { objectives, links } = useStrategyStore()
+  const { strategySets, activeStrategyId } = useStrategyStore()
+
+  const activeStrategy = strategySets.find(s => s.id === activeStrategyId) ?? strategySets[0]
+  const objectives = activeStrategy?.objectives ?? []
+  const links = activeStrategy?.links ?? []
 
   const nodes = useMemo(() => objectives.map(obj => ({
     id: obj.id,
@@ -36,5 +40,5 @@ export function useStrategyMap() {
     id, y, height: LANE_HEIGHT, perspective: PERSPECTIVE_MAP[id],
   })), [])
 
-  return { nodes, edges, lanes }
+  return { nodes, edges, lanes, activeStrategy }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Edit3, Save, X, Eye } from 'lucide-react'
+import { ChevronRight, Edit3, Save, X, Eye, Plus, Trash2 } from 'lucide-react'
 import { useStrategyStore } from '../../store/strategyStore.js'
 import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 
@@ -43,6 +43,8 @@ const DEFAULT_PERSPECTIVES = [
   },
 ]
 
+const STRATEGY_COLORS = ['#2563eb', '#9333ea', '#16a34a', '#d97706', '#dc2626', '#0891b2']
+
 function PerspectiveCard({ perspective, objectives, onSave }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(perspective)
@@ -51,7 +53,6 @@ function PerspectiveCard({ perspective, objectives, onSave }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {/* Color bar */}
       <div className="h-1.5 w-full" style={{ background: perspective.color }} />
 
       <div className="p-5">
@@ -110,7 +111,6 @@ function PerspectiveCard({ perspective, objectives, onSave }) {
           <p className="text-xs text-slate-500 leading-relaxed mb-4">{perspective.description}</p>
         )}
 
-        {/* Objectives */}
         <div className="mt-4">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Mục tiêu chiến lược ({objectives.length})
@@ -140,10 +140,13 @@ function PerspectiveCard({ perspective, objectives, onSave }) {
 }
 
 export default function PerspectivesPage() {
-  const { objectives } = useStrategyStore()
+  const { strategySets, activeStrategyId, setActiveStrategy, addStrategy, deleteStrategy } = useStrategyStore()
   const { markStepComplete } = useBSCWorkflowStore()
   const navigate = useNavigate()
   const [perspectives, setPerspectives] = useState(DEFAULT_PERSPECTIVES)
+
+  const activeStrategy = strategySets.find(s => s.id === activeStrategyId) ?? strategySets[0]
+  const activeObjectives = activeStrategy?.objectives ?? []
 
   const handleSave = (id, updated) => {
     setPerspectives((prev) => prev.map((p) => p.id === id ? { ...p, ...updated } : p))
@@ -155,7 +158,7 @@ export default function PerspectivesPage() {
   }
 
   const getObjectivesForPerspective = (perspectiveId) =>
-    objectives.filter((o) => o.perspective === perspectiveId)
+    activeObjectives.filter((o) => o.perspective === perspectiveId)
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
@@ -180,22 +183,64 @@ export default function PerspectivesPage() {
         </div>
       </div>
 
-      {/* BSC Framework overview */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">Khung BSC — Mô hình 4 góc độ</h2>
-        <div className="relative flex flex-col items-center gap-2">
-          <div className="flex gap-4 w-full">
-            {perspectives.map((p) => (
-              <div key={p.id} className="flex-1 rounded-xl border-2 px-3 py-2.5 text-center" style={{ borderColor: p.color, background: `${p.color}0a` }}>
-                <div className="text-lg">{p.icon}</div>
-                <div className="text-xs font-bold mt-1" style={{ color: p.color }}>{p.name}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">{getObjectivesForPerspective(p.id).length} mục tiêu</div>
-              </div>
-            ))}
-          </div>
-          <div className="w-0.5 h-6 bg-slate-300" />
-          <div className="px-6 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">
-            TẦM NHÌN & CHIẾN LƯỢC
+      {/* Strategy tabs */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2 overflow-x-auto">
+          <span className="text-xs font-semibold text-slate-500 shrink-0 mr-1">Chiến lược:</span>
+          {strategySets.map((s) => (
+            <div key={s.id} className="flex items-center gap-0 shrink-0">
+              <button
+                onClick={() => setActiveStrategy(s.id)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-l-lg text-xs font-semibold transition-all"
+                style={s.id === activeStrategyId
+                  ? { background: s.color, color: '#fff', boxShadow: `0 2px 8px ${s.color}40` }
+                  : { background: '#f1f5f9', color: '#64748b' }
+                }
+              >
+                <span className="w-2 h-2 rounded-full" style={{ background: s.id === activeStrategyId ? '#fff' : s.color }} />
+                {s.name}
+                <span className="opacity-70">— {s.description}</span>
+              </button>
+              {strategySets.length > 1 && (
+                <button
+                  onClick={() => deleteStrategy(s.id)}
+                  title="Xóa chiến lược"
+                  className="px-1.5 py-1.5 rounded-r-lg text-xs transition-all hover:bg-red-100 hover:text-red-600"
+                  style={s.id === activeStrategyId
+                    ? { background: s.color, color: '#fff9' }
+                    : { background: '#f1f5f9', color: '#cbd5e1' }
+                  }
+                >
+                  <Trash2 size={11} />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => addStrategy(`Chiến lược ${strategySets.length + 1}`, '', STRATEGY_COLORS[strategySets.length % STRATEGY_COLORS.length])}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all shrink-0 ml-1"
+          >
+            <Plus size={13} /> Thêm chiến lược
+          </button>
+        </div>
+
+        {/* BSC Framework overview */}
+        <div className="p-5">
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">Khung BSC — Mô hình 4 góc độ</h2>
+          <div className="relative flex flex-col items-center gap-2">
+            <div className="flex gap-4 w-full">
+              {perspectives.map((p) => (
+                <div key={p.id} className="flex-1 rounded-xl border-2 px-3 py-2.5 text-center" style={{ borderColor: p.color, background: `${p.color}0a` }}>
+                  <div className="text-lg">{p.icon}</div>
+                  <div className="text-xs font-bold mt-1" style={{ color: p.color }}>{p.name}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{getObjectivesForPerspective(p.id).length} mục tiêu</div>
+                </div>
+              ))}
+            </div>
+            <div className="w-0.5 h-6 bg-slate-300" />
+            <div className="px-6 py-2 rounded-xl text-white text-xs font-bold" style={{ background: activeStrategy?.color ?? '#1e293b' }}>
+              {activeStrategy?.name ?? 'TẦM NHÌN & CHIẾN LƯỢC'} — {activeStrategy?.description}
+            </div>
           </div>
         </div>
       </div>
