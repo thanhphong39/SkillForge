@@ -1,55 +1,89 @@
 import { create } from 'zustand'
-import { mockPerspectiveWeights, mockObjectiveWeights } from '../data/mockWeights.js'
 
-const PERSPECTIVES = ['financial', 'customer', 'internal', 'learning']
-
-function renormalize(weights, changedId, newValue) {
-  const others = PERSPECTIVES.filter((k) => k !== changedId)
-  const remaining = 100 - newValue
-  const currentOthersTotal = others.reduce((sum, k) => sum + weights[k], 0)
-  const result = { ...weights, [changedId]: newValue }
-  if (currentOthersTotal === 0) {
-    const share = Math.floor(remaining / others.length)
-    others.forEach((k, i) => { result[k] = i === others.length - 1 ? remaining - share * (others.length - 1) : share })
-  } else {
-    others.forEach((k) => { result[k] = Math.round((weights[k] / currentOthersTotal) * remaining) })
-    // Fix rounding errors
-    const total = Object.values(result).reduce((a, b) => a + b, 0)
-    if (total !== 100) result[others[0]] += 100 - total
-  }
-  return result
+const DEFAULT_PERSPECTIVE_WEIGHTS = {
+  FINANCIAL: 40,
+  CUSTOMER: 30,
+  INTERNAL_PROCESS: 20,
+  LEARNING_AND_GROWTH: 10,
 }
 
-function renormalizeObjectives(weights, changedId, newValue, siblingIds) {
-  const others = siblingIds.filter((k) => k !== changedId)
-  const remaining = 100 - newValue
-  const currentOthersTotal = others.reduce((sum, k) => sum + (weights[k] ?? 0), 0)
-  const result = { ...weights, [changedId]: newValue }
-  if (currentOthersTotal === 0) {
-    const share = Math.floor(remaining / others.length)
-    others.forEach((k, i) => { result[k] = i === others.length - 1 ? remaining - share * (others.length - 1) : share })
-  } else {
-    others.forEach((k) => { result[k] = Math.round(((weights[k] ?? 0) / currentOthersTotal) * remaining) })
-    const total = others.reduce((s, k) => s + result[k], newValue)
-    if (total !== 100) result[others[0]] += 100 - total
-  }
-  return result
-}
+export const useWeightStore = create((set, get) => ({
+  perspectiveWeights: { ...DEFAULT_PERSPECTIVE_WEIGHTS },
+  objectiveWeights: {}, // { [objId]: absoluteWeight }
+  kpiWeights: {},       // { [kpiId]: absoluteWeight }
 
-export const useWeightStore = create((set) => ({
-  perspectiveWeights: { ...mockPerspectiveWeights },
-  objectiveWeights: { ...mockObjectiveWeights },
-
-  setPerspectiveWeight: (perspectiveId, value) => set((state) => ({
-    perspectiveWeights: renormalize(state.perspectiveWeights, perspectiveId, value),
+  setPerspectiveWeight: (perspId, value) => set((state) => ({
+    perspectiveWeights: {
+      ...state.perspectiveWeights,
+      [perspId]: Math.max(0, Math.min(100, Number(value) || 0)),
+    },
   })),
 
-  setObjectiveWeight: (objectiveId, value, siblingIds) => set((state) => ({
-    objectiveWeights: renormalizeObjectives(state.objectiveWeights, objectiveId, value, siblingIds),
+  setObjectiveWeight: (objId, value) => set((state) => ({
+    objectiveWeights: {
+      ...state.objectiveWeights,
+      [objId]: Math.max(0, Number(value) || 0),
+    },
   })),
+
+  setKpiWeight: (kpiId, value) => set((state) => ({
+    kpiWeights: {
+      ...state.kpiWeights,
+      [kpiId]: Math.max(0, Number(value) || 0),
+    },
+  })),
+
+  // Evenly distribute perspective weight across uninitialized objectives
+  initObjectiveWeights: (objectives) => set((state) => {
+    const weights = { ...state.objectiveWeights }
+    const perspWt = state.perspectiveWeights
+    const byPersp = {}
+    objectives.forEach((o) => {
+      if (!byPersp[o.perspective]) byPersp[o.perspective] = []
+      byPersp[o.perspective].push(o)
+    })
+    Object.entries(byPersp).forEach(([perspId, objs]) => {
+      const uninit = objs.filter((o) => weights[o.id] === undefined)
+      if (uninit.length === 0) return
+      const target = perspWt[perspId] ?? 0
+      const n = objs.length
+      const share = Math.floor(target / n)
+      let remaining = target - share * (n - uninit.length)
+      uninit.forEach((o, i) => {
+        weights[o.id] = i === uninit.length - 1 ? remaining : share
+        if (i < uninit.length - 1) remaining -= share
+      })
+    })
+    return { objectiveWeights: weights }
+  }),
+
+  // Evenly distribute objective weight across uninitialized KPIs
+  initKpiWeights: (allKpis) => set((state) => {
+    const weights = { ...state.kpiWeights }
+    const objWt = state.objectiveWeights
+    const byObj = {}
+    allKpis.forEach((k) => {
+      if (!byObj[k.objectiveId]) byObj[k.objectiveId] = []
+      byObj[k.objectiveId].push(k)
+    })
+    Object.entries(byObj).forEach(([objId, kpis]) => {
+      const uninit = kpis.filter((k) => weights[k.id] === undefined)
+      if (uninit.length === 0) return
+      const target = objWt[objId] ?? 0
+      const n = kpis.length
+      const share = Math.floor(target / n)
+      let remaining = target - share * (n - uninit.length)
+      uninit.forEach((k, i) => {
+        weights[k.id] = i === uninit.length - 1 ? remaining : share
+        if (i < uninit.length - 1) remaining -= share
+      })
+    })
+    return { kpiWeights: weights }
+  }),
 
   resetToDefault: () => set({
-    perspectiveWeights: { ...mockPerspectiveWeights },
-    objectiveWeights: { ...mockObjectiveWeights },
+    perspectiveWeights: { ...DEFAULT_PERSPECTIVE_WEIGHTS },
+    objectiveWeights: {},
+    kpiWeights: {},
   }),
 }))

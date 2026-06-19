@@ -1,100 +1,116 @@
-export const mockSWOTItems = [
-  // Strengths
-  { id: 'sw-s1', quadrant: 'strength', title: 'Thương hiệu mạnh trong khu vực', description: 'Được nhận diện bởi 73% khách hàng mục tiêu tại thị trường miền Nam', impact: 'high', category: 'brand' },
-  { id: 'sw-s2', quadrant: 'strength', title: 'Đội ngũ kỹ thuật giàu kinh nghiệm', description: 'Trung bình 8 năm kinh nghiệm, 60% có bằng đại học kỹ thuật', impact: 'high', category: 'people' },
-  { id: 'sw-s3', quadrant: 'strength', title: 'Chuỗi cung ứng ổn định', description: '5 nhà cung cấp chiến lược với hợp đồng dài hạn, ít rủi ro gián đoạn', impact: 'medium', category: 'operations' },
-  { id: 'sw-s4', quadrant: 'strength', title: 'Cơ cấu chi phí cạnh tranh', description: 'Chi phí sản xuất thấp hơn 12% so với trung bình ngành', impact: 'medium', category: 'finance' },
+const uid = (prefix) => (n) => `${prefix}-${n}`
+const s7 = uid('7s')
+const ff = uid('ff')
+const pe = uid('pe')
 
-  // Weaknesses
-  { id: 'sw-w1', quadrant: 'weakness', title: 'Chưa chuyển đổi số', description: 'Nhiều quy trình vẫn thủ công, thiếu tích hợp hệ thống ERP/CRM', impact: 'high', category: 'technology' },
-  { id: 'sw-w2', quadrant: 'weakness', title: 'Danh mục sản phẩm hạn hẹp', description: 'Chỉ có 3 dòng sản phẩm chính, dễ bị tổn thương nếu nhu cầu thay đổi', impact: 'high', category: 'product' },
-  { id: 'sw-w3', quadrant: 'weakness', title: 'Tỷ lệ nghỉ việc cao', description: 'Turnover 22%/năm, cao hơn trung bình ngành 15%, chi phí tuyển dụng lớn', impact: 'medium', category: 'people' },
-  { id: 'sw-w4', quadrant: 'weakness', title: 'Báo cáo quản trị thủ công', description: 'Thiếu dashboard thời gian thực, quyết định chậm do thiếu dữ liệu kịp thời', impact: 'medium', category: 'operations' },
+export const mockSevenS = {
+  STRATEGY: [
+    { id: s7(1), value: 'Tập trung vào phân khúc SME chuyển đổi số' },
+    { id: s7(2), value: 'Mở rộng thị trường sang các tỉnh ngoài TP.HCM' },
+  ],
+  STRUCTURE: [
+    { id: s7(3), value: 'Cơ cấu tổ chức phẳng, linh hoạt theo dự án' },
+    { id: s7(4), value: 'Phối hợp liên phòng ban còn nhiều hạn chế' },
+  ],
+  SYSTEMS: [
+    { id: s7(5), value: 'Quy trình triển khai dự án được tài liệu hóa rõ ràng' },
+    { id: s7(6), value: 'Hệ thống CRM chưa đồng bộ với bộ phận sales' },
+  ],
+  SHARED_VALUES: [
+    { id: s7(7), value: 'Văn hóa chú trọng kết quả đo lường được' },
+    { id: s7(8), value: 'Đề cao sự minh bạch trong báo cáo nội bộ' },
+  ],
+  SKILLS: [
+    { id: s7(9),  value: 'Đội ngũ kỹ thuật triển khai nhanh và thành thạo' },
+    { id: s7(10), value: 'Nhân viên sales chưa mạnh về tư vấn giải pháp chiến lược' },
+    { id: s7(11), value: 'Bộ phận CSKH có kinh nghiệm xử lý khách hàng SME' },
+  ],
+  STYLE: [
+    { id: s7(12), value: 'Lãnh đạo chủ động, trao quyền cho đội nhóm' },
+    { id: s7(13), value: 'Ra quyết định nhanh nhờ cơ cấu gọn' },
+  ],
+  STAFF: [
+    { id: s7(14), value: 'Đội ngũ trẻ, nhiệt huyết và học hỏi nhanh' },
+    { id: s7(15), value: 'Tỷ lệ giữ chân nhân sự chủ chốt còn thấp' },
+  ],
+}
 
-  // Opportunities
-  { id: 'sw-o1', quadrant: 'opportunity', title: 'Thương mại điện tử tăng trưởng mạnh', description: 'Kênh online tăng 35%/năm, cơ hội mở rộng doanh thu không cần mặt bằng', impact: 'high', category: 'market' },
-  { id: 'sw-o2', quadrant: 'opportunity', title: 'Đầu tư hạ tầng chính phủ', description: 'Gói đầu tư công 2024-2026 tạo nhu cầu lớn cho vật liệu xây dựng', impact: 'high', category: 'market' },
-  { id: 'sw-o3', quadrant: 'opportunity', title: 'Mở rộng ra khu vực miền Trung', description: 'Thị trường chưa khai thác, ít đối thủ mạnh, biên lợi nhuận cao hơn', impact: 'medium', category: 'expansion' },
-  { id: 'sw-o4', quadrant: 'opportunity', title: 'Xu hướng ESG và sản phẩm xanh', description: 'Nhu cầu sản phẩm thân thiện môi trường tăng, premium pricing tiềm năng', impact: 'medium', category: 'product' },
+export const mockFiveForces = {
+  COMPETITIVE_RIVALRY: [
+    { id: ff(1), value: 'Nhiều đối thủ đang cung cấp giải pháp BSC/KPI tương tự' },
+    { id: ff(2), value: 'Một số đối thủ cạnh tranh bằng giá thấp hơn đáng kể' },
+    { id: ff(3), value: 'Thị trường SME còn phân mảnh, chưa có đơn vị thống trị tuyệt đối' },
+  ],
+  SUPPLIER_POWER: [
+    { id: ff(4), value: 'Phụ thuộc vào hạ tầng cloud của AWS/Azure với chi phí tăng hàng năm' },
+    { id: ff(5), value: 'Nhà cung cấp dịch vụ tư vấn bên ngoài có lựa chọn hạn chế' },
+  ],
+  BUYER_POWER: [
+    { id: ff(6), value: 'Khách hàng SME dễ so sánh và chuyển đổi nhà cung cấp' },
+    { id: ff(7), value: 'Khách hàng lớn đòi hỏi điều khoản hợp đồng có lợi cho họ' },
+  ],
+  THREAT_OF_SUBSTITUTES: [
+    { id: ff(8), value: 'Các công cụ Excel/Google Sheet vẫn được dùng thay thế phần mềm' },
+    { id: ff(9), value: 'Giải pháp quản trị tích hợp từ SAP, Oracle có tính năng BSC' },
+  ],
+  THREAT_OF_NEW_ENTRANTS: [
+    { id: ff(10), value: 'Rào cản gia nhập thấp — nhiều startup fintech/HR-tech đang bước vào ngành' },
+    { id: ff(11), value: 'Các công ty nước ngoài bắt đầu bản địa hóa sản phẩm vào Việt Nam' },
+  ],
+}
 
-  // Threats
-  { id: 'sw-t1', quadrant: 'threat', title: 'Biến động giá nguyên vật liệu', description: 'Giá thép và xi măng tăng 25% trong 18 tháng, ảnh hưởng biên lợi nhuận', impact: 'high', category: 'supply' },
-  { id: 'sw-t2', quadrant: 'threat', title: 'Đối thủ mới từ Trung Quốc', description: 'Hàng nhập khẩu giá rẻ chiếm 15% thị phần trong 2 năm gần đây', impact: 'high', category: 'competition' },
-  { id: 'sw-t3', quadrant: 'threat', title: 'Biến động tỷ giá', description: 'Phụ thuộc 30% nguyên liệu nhập khẩu, rủi ro tỷ giá USD/VND', impact: 'medium', category: 'finance' },
-  { id: 'sw-t4', quadrant: 'threat', title: 'Thắt chặt quy định môi trường', description: 'Các tiêu chuẩn phát thải mới yêu cầu đầu tư thiết bị lọc thêm', impact: 'medium', category: 'regulation' },
-]
+export const mockPestel = {
+  POLITICAL: [
+    { id: pe(1), value: 'Chính phủ khuyến khích doanh nghiệp áp dụng quản trị hiện đại' },
+    { id: pe(2), value: 'Chương trình hỗ trợ chuyển đổi số cho SME giai đoạn 2025–2030' },
+  ],
+  ECONOMIC: [
+    { id: pe(3), value: 'Kinh tế tăng trưởng, doanh nghiệp SME mở rộng đầu tư công nghệ' },
+    { id: pe(4), value: 'Lạm phát làm tăng chi phí vận hành, ảnh hưởng ngân sách phần mềm' },
+  ],
+  SOCIAL: [
+    { id: pe(5), value: 'Lãnh đạo thế hệ mới cởi mở hơn với công cụ quản trị số' },
+    { id: pe(6), value: 'Nhận thức về tầm quan trọng của BSC và OKR ngày càng tăng' },
+  ],
+  TECHNOLOGICAL: [
+    { id: pe(7), value: 'Doanh nghiệp SME bắt đầu quan tâm đến chuyển đổi số mạnh mẽ' },
+    { id: pe(8), value: 'AI giúp tự động hóa nhiều quy trình phân tích và báo cáo' },
+    { id: pe(9), value: 'Khách hàng quen với dashboard và báo cáo realtime' },
+  ],
+  ENVIRONMENTAL: [
+    { id: pe(10), value: 'Xu hướng ESG thúc đẩy doanh nghiệp cần KPI đo lường bền vững' },
+  ],
+  LEGAL: [
+    { id: pe(11), value: 'Quy định về bảo mật dữ liệu doanh nghiệp ngày càng chặt chẽ' },
+    { id: pe(12), value: 'Luật doanh nghiệp yêu cầu minh bạch hóa thông tin quản trị' },
+  ],
+}
+
+// SWOT: IDs of items selected from 7S (S/W) and 5Forces+PESTEL (O/T)
+export const mockSwotS = ['7s-9', '7s-12', '7s-7']
+export const mockSwotW = ['7s-10', '7s-15', '7s-6']
+export const mockSwotO = ['pe-7', 'pe-6', 'ff-3']
+export const mockSwotT = ['ff-1', 'ff-2', 'ff-10']
 
 export const mockStrategies = [
   {
-    id: 'strat-so1', type: 'SO', priority: 'high', selected: true,
-    title: 'Mở rộng thị phần khu vực miền Trung',
-    description: 'Tận dụng thương hiệu mạnh và chuỗi cung ứng ổn định để xâm nhập thị trường miền Trung chưa khai thác',
-    relatedStrengths: ['sw-s1', 'sw-s3'],
-    relatedOpportunities: ['sw-o3'],
-    relatedWeaknesses: [], relatedThreats: [],
-    feasibility: 75, impact: 85,
+    id: 'strat-1', type: 'SO', name: 'Tăng trưởng thị phần SME bằng năng lực triển khai nhanh',
+    description: 'Tận dụng đội ngũ kỹ thuật mạnh và phong cách lãnh đạo trao quyền để chiếm lĩnh phân khúc SME đang chuyển đổi số',
+    sItems: ['7s-9', '7s-12'], oItem: 'pe-7', wItems: [], tItem: null,
   },
   {
-    id: 'strat-so2', type: 'SO', priority: 'high', selected: true,
-    title: 'Phát triển kênh bán hàng trực tuyến',
-    description: 'Dùng lợi thế thương hiệu và cơ cấu chi phí thấp để xây dựng kênh thương mại điện tử B2B',
-    relatedStrengths: ['sw-s1', 'sw-s4'],
-    relatedOpportunities: ['sw-o1'],
-    relatedWeaknesses: [], relatedThreats: [],
-    feasibility: 65, impact: 80,
+    id: 'strat-2', type: 'ST', name: 'Củng cố vị thế bằng giá trị đo lường được',
+    description: 'Phát huy văn hóa minh bạch và đo lường kết quả để tạo sự khác biệt rõ ràng so với đối thủ cạnh tranh giá thấp',
+    sItems: ['7s-7'], oItem: null, wItems: [], tItem: 'ff-2',
   },
   {
-    id: 'strat-st1', type: 'ST', priority: 'high', selected: true,
-    title: 'Đa dạng hóa nhà cung cấp nội địa',
-    description: 'Phát triển thêm nhà cung cấp trong nước để giảm phụ thuộc nguyên liệu nhập khẩu và rủi ro tỷ giá',
-    relatedStrengths: ['sw-s3'],
-    relatedThreats: ['sw-t1', 'sw-t3'],
-    relatedWeaknesses: [], relatedOpportunities: [],
-    feasibility: 70, impact: 70,
+    id: 'strat-3', type: 'WO', name: 'Nâng cao năng lực tư vấn chiến lược cho đội sales',
+    description: 'Đào tạo đội sales về BSC và OKR để đáp ứng nhu cầu của lãnh đạo SME thế hệ mới đang quan tâm đến quản trị số',
+    sItems: [], oItem: 'pe-6', wItems: ['7s-10'], tItem: null,
   },
   {
-    id: 'strat-st2', type: 'ST', priority: 'medium', selected: false,
-    title: 'Phát triển dòng sản phẩm cao cấp',
-    description: 'Dùng lợi thế kỹ thuật để phát triển sản phẩm premium, tránh cạnh tranh giá với hàng Trung Quốc',
-    relatedStrengths: ['sw-s2', 'sw-s4'],
-    relatedThreats: ['sw-t2'],
-    relatedWeaknesses: [], relatedOpportunities: [],
-    feasibility: 55, impact: 75,
-  },
-  {
-    id: 'strat-wo1', type: 'WO', priority: 'high', selected: true,
-    title: 'Chuyển đổi số quy trình vận hành',
-    description: 'Triển khai ERP và CRM để tận dụng cơ hội thị trường nhanh hơn, giảm chi phí vận hành thủ công',
-    relatedWeaknesses: ['sw-w1', 'sw-w4'],
-    relatedOpportunities: ['sw-o1'],
-    relatedStrengths: [], relatedThreats: [],
-    feasibility: 60, impact: 85,
-  },
-  {
-    id: 'strat-wo2', type: 'WO', priority: 'medium', selected: false,
-    title: 'Mở rộng danh mục sản phẩm xanh',
-    description: 'Nghiên cứu và phát triển dòng sản phẩm thân thiện môi trường để đáp ứng xu hướng ESG',
-    relatedWeaknesses: ['sw-w2'],
-    relatedOpportunities: ['sw-o4'],
-    relatedStrengths: [], relatedThreats: [],
-    feasibility: 45, impact: 70,
-  },
-  {
-    id: 'strat-wt1', type: 'WT', priority: 'medium', selected: false,
-    title: 'Cải thiện chính sách giữ chân nhân tài',
-    description: 'Xây dựng lộ trình nghề nghiệp và gói phúc lợi cạnh tranh để giảm turnover, tăng sức chống chịu',
-    relatedWeaknesses: ['sw-w3'],
-    relatedThreats: ['sw-t2'],
-    relatedStrengths: [], relatedOpportunities: [],
-    feasibility: 70, impact: 60,
-  },
-  {
-    id: 'strat-wt2', type: 'WT', priority: 'low', selected: false,
-    title: 'Tối ưu hóa chi phí vận hành',
-    description: 'Lean manufacturing và tự động hóa một phần để duy trì khả năng cạnh tranh khi chi phí tăng',
-    relatedWeaknesses: ['sw-w1'],
-    relatedThreats: ['sw-t1'],
-    relatedStrengths: [], relatedOpportunities: [],
-    feasibility: 65, impact: 55,
+    id: 'strat-4', type: 'WT', name: 'Giữ chân nhân sự để chống chịu áp lực từ đối thủ mới',
+    description: 'Xây dựng lộ trình phát triển và gói đãi ngộ hấp dẫn để giữ nhân tài, giảm rủi ro khi thị trường có thêm đối thủ gia nhập',
+    sItems: [], oItem: null, wItems: ['7s-15'], tItem: 'ff-10',
   },
 ]

@@ -6,8 +6,8 @@ const initialSteps = {
   B3: { status: 'active',    completedAt: null,          label: 'Kết quả chiến lược' },
   B4: { status: 'pending',   completedAt: null,          label: 'Bản đồ Chiến lược' },
   B5: { status: 'pending',   completedAt: null,          label: 'Mô hình Xương cá' },
-  B6: { status: 'pending',   completedAt: null,          label: 'Đo lường & Chỉ tiêu' },
-  B7: { status: 'pending',   completedAt: null,          label: 'Phân bổ Tỉ trọng' },
+  B6: { status: 'pending',   completedAt: null,          label: 'Phân bổ Tỉ trọng' },
+  B7: { status: 'pending',   completedAt: null,          label: 'Đo lường & Chỉ tiêu' },
   B8: { status: 'pending',   completedAt: null,          label: 'Action Plan' },
 }
 

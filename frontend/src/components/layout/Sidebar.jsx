@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Lightbulb, Target, Map,
   GitBranch, ListChecks, Scale, Rocket, ChevronLeft, ChevronRight,
-  ChevronDown, CheckCircle2, Circle, Loader2, BarChart3, ClipboardEdit,
+  ChevronDown, CheckCircle2, Circle, Loader2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useUIStore } from '../../store/uiStore.js'
@@ -18,24 +18,23 @@ const NAV_STEPS = [
     step: 'B2', to: '/strategy-build', icon: Lightbulb,
     label: 'Xây dựng Chiến lược',
     children: [
-      { to: '/strategy-build/swot',      label: 'Phân tích SWOT' },
-      { to: '/strategy-build/formulate', label: 'Xây dựng Chiến lược' },
+      { to: '/strategy-build/swot',      label: 'B2.1–2.4 Phân tích' },
+      { to: '/strategy-build/formulate', label: 'B2.5 Chiến lược SO/ST/WO/WT' },
     ],
   },
   {
     step: 'B3', to: '/strategy-results', icon: Target,
     label: 'Kết quả chiến lược',
     children: [
-      { to: '/strategy-results/selection', label: 'Lựa chọn chiến lược' },
-      { to: '/strategy-results/outcomes',  label: 'Kết quả chiến lược' },
+      { to: '/strategy-results/selection', label: 'Chọn chiến lược (1–2)' },
+      { to: '/strategy-results/outcomes',  label: 'Tóm tắt đã chọn' },
     ],
   },
   {
     step: 'B4', to: '/strategy-map', icon: Map,
     label: 'Bản đồ Chiến lược',
     children: [
-      { to: '/strategy-map/perspectives', label: 'Thành phần' },
-      { to: '/strategy-map/company',      label: 'Công ty' },
+      { to: '/strategy-map/perspectives', label: 'Tạo mục tiêu & gộp bản đồ' },
     ],
   },
   {
@@ -43,12 +42,12 @@ const NAV_STEPS = [
     label: 'Mô hình Xương cá',
   },
   {
-    step: 'B6', to: '/kpi-setup', icon: ListChecks,
-    label: 'Đo lường & Chỉ tiêu',
+    step: 'B6', to: '/weight-allocation', icon: Scale,
+    label: 'Phân bổ Tỉ trọng',
   },
   {
-    step: 'B7', to: '/weight-allocation', icon: Scale,
-    label: 'Phân bổ Tỉ trọng',
+    step: 'B7', to: '/kpi-setup', icon: ListChecks,
+    label: 'Đo lường & Chỉ tiêu',
   },
   {
     step: 'B8', to: '/action-plan', icon: Rocket,
@@ -56,10 +55,6 @@ const NAV_STEPS = [
   },
 ]
 
-const EXTRA_NAV = [
-  { to: '/kpi-entry', icon: ClipboardEdit, label: 'Nhập liệu KPI' },
-  { to: '/reports',   icon: BarChart3,     label: 'Báo cáo' },
-]
 
 function StepBadge({ step, status, collapsed }) {
   const base = 'shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-colors'
@@ -273,27 +268,6 @@ export function Sidebar() {
           )
         })}
 
-        {/* Extra nav */}
-        {!sidebarCollapsed && (
-          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-2 pt-4 pb-2">Công cụ</p>
-        )}
-        {EXTRA_NAV.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            title={sidebarCollapsed ? label : undefined}
-            className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
-              sidebarCollapsed && 'justify-center',
-              isActive
-                ? 'bg-blue-600/20 text-blue-400 border-l-2 border-blue-500'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-            )}
-          >
-            <Icon size={17} className="shrink-0" />
-            {!sidebarCollapsed && <span className="font-medium text-[13px]">{label}</span>}
-          </NavLink>
-        ))}
       </nav>
 
       {/* Collapse toggle */}

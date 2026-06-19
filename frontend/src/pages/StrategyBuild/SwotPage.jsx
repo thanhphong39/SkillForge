@@ -1,240 +1,338 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { Plus, Edit3, Trash2, ChevronRight, X, Shield, AlertTriangle, TrendingUp, Zap } from 'lucide-react'
-import clsx from 'clsx'
+import { Plus, Trash2, Edit3, Save, X, ChevronRight, CheckSquare, Square } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
 
-const QUADRANT_META = {
-  strength:    { label: 'Điểm mạnh',    labelEn: 'Strengths',    icon: Shield,        color: 'emerald', bg: 'bg-emerald-50', border: 'border-emerald-200', header: 'bg-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
-  weakness:    { label: 'Điểm yếu',     labelEn: 'Weaknesses',   icon: AlertTriangle, color: 'red',     bg: 'bg-red-50',     border: 'border-red-200',     header: 'bg-red-600',     badge: 'bg-red-100 text-red-700' },
-  opportunity: { label: 'Cơ hội',       labelEn: 'Opportunities', icon: TrendingUp,   color: 'blue',    bg: 'bg-blue-50',    border: 'border-blue-200',    header: 'bg-blue-600',    badge: 'bg-blue-100 text-blue-700' },
-  threat:      { label: 'Thách thức',   labelEn: 'Threats',      icon: Zap,           color: 'amber',   bg: 'bg-amber-50',   border: 'border-amber-200',   header: 'bg-amber-600',   badge: 'bg-amber-100 text-amber-700' },
+// ── Meta ─────────────────────────────────────────────────────────────────────
+
+const SEVEN_S_META = {
+  STRATEGY:     { label: 'Strategy',     vi: 'Chiến lược',        color: 'blue' },
+  STRUCTURE:    { label: 'Structure',    vi: 'Cơ cấu tổ chức',    color: 'purple' },
+  SYSTEMS:      { label: 'Systems',      vi: 'Hệ thống / Quy trình', color: 'emerald' },
+  SHARED_VALUES:{ label: 'Shared Values',vi: 'Giá trị chung',     color: 'amber' },
+  SKILLS:       { label: 'Skills',       vi: 'Kỹ năng / Năng lực', color: 'rose' },
+  STYLE:        { label: 'Style',        vi: 'Phong cách quản lý', color: 'cyan' },
+  STAFF:        { label: 'Staff',        vi: 'Nhân sự',           color: 'orange' },
 }
 
-const IMPACT_META = {
-  high:   { label: 'Cao',    cls: 'bg-rose-100 text-rose-700' },
-  medium: { label: 'Vừa',   cls: 'bg-yellow-100 text-yellow-700' },
-  low:    { label: 'Thấp',   cls: 'bg-slate-100 text-slate-500' },
+const FIVE_FORCES_META = {
+  COMPETITIVE_RIVALRY:    { label: 'Competitive Rivalry',    vi: 'Mức độ cạnh tranh trong ngành',     color: 'red' },
+  SUPPLIER_POWER:         { label: 'Supplier Power',         vi: 'Quyền lực nhà cung cấp',            color: 'orange' },
+  BUYER_POWER:            { label: 'Buyer Power',            vi: 'Quyền lực khách hàng',              color: 'amber' },
+  THREAT_OF_SUBSTITUTES:  { label: 'Threat of Substitutes',  vi: 'Nguy cơ từ sản phẩm thay thế',      color: 'purple' },
+  THREAT_OF_NEW_ENTRANTS: { label: 'Threat of New Entrants', vi: 'Nguy cơ từ đối thủ mới gia nhập',   color: 'pink' },
 }
 
-const CATEGORIES = {
-  strength:    ['brand', 'people', 'operations', 'finance', 'product', 'technology'],
-  weakness:    ['technology', 'people', 'operations', 'product', 'finance', 'brand'],
-  opportunity: ['market', 'expansion', 'product', 'technology', 'regulation', 'finance'],
-  threat:      ['competition', 'supply', 'finance', 'regulation', 'market', 'technology'],
+const PESTEL_META = {
+  POLITICAL:     { label: 'Political',     vi: 'Chính trị',   color: 'blue' },
+  ECONOMIC:      { label: 'Economic',      vi: 'Kinh tế',     color: 'emerald' },
+  SOCIAL:        { label: 'Social',        vi: 'Xã hội',      color: 'purple' },
+  TECHNOLOGICAL: { label: 'Technological', vi: 'Công nghệ',   color: 'cyan' },
+  ENVIRONMENTAL: { label: 'Environmental', vi: 'Môi trường',  color: 'green' },
+  LEGAL:         { label: 'Legal',         vi: 'Pháp lý',     color: 'orange' },
 }
 
-const CATEGORY_LABELS = {
-  brand: 'Thương hiệu', people: 'Con người', operations: 'Vận hành', finance: 'Tài chính',
-  product: 'Sản phẩm', technology: 'Công nghệ', market: 'Thị trường', expansion: 'Mở rộng',
-  regulation: 'Pháp lý', competition: 'Cạnh tranh', supply: 'Chuỗi cung ứng',
+const COLOR_RING = {
+  blue:   'border-blue-200 bg-blue-50 text-blue-700',
+  purple: 'border-purple-200 bg-purple-50 text-purple-700',
+  emerald:'border-emerald-200 bg-emerald-50 text-emerald-700',
+  amber:  'border-amber-200 bg-amber-50 text-amber-700',
+  rose:   'border-rose-200 bg-rose-50 text-rose-700',
+  cyan:   'border-cyan-200 bg-cyan-50 text-cyan-700',
+  orange: 'border-orange-200 bg-orange-50 text-orange-700',
+  red:    'border-red-200 bg-red-50 text-red-700',
+  pink:   'border-pink-200 bg-pink-50 text-pink-700',
+  green:  'border-green-200 bg-green-50 text-green-700',
 }
 
-function SwotItemCard({ item, onEdit, onDelete }) {
-  const meta = QUADRANT_META[item.quadrant]
+const SWOT_META = {
+  S: { label: 'S — Điểm mạnh',   labelShort: 'S',  desc: 'Chọn từ 7S',              bg: 'bg-emerald-50', border: 'border-emerald-300', badge: 'bg-emerald-600 text-white', dot: 'bg-emerald-500' },
+  W: { label: 'W — Điểm yếu',    labelShort: 'W',  desc: 'Chọn từ 7S',              bg: 'bg-red-50',     border: 'border-red-300',     badge: 'bg-red-600 text-white',     dot: 'bg-red-500' },
+  O: { label: 'O — Cơ hội',      labelShort: 'O',  desc: 'Chọn từ 5 Forces + PESTEL', bg: 'bg-blue-50',  border: 'border-blue-300',    badge: 'bg-blue-600 text-white',    dot: 'bg-blue-500' },
+  T: { label: 'T — Thách thức',  labelShort: 'T',  desc: 'Chọn từ 5 Forces + PESTEL', bg: 'bg-amber-50', border: 'border-amber-300',   badge: 'bg-amber-600 text-white',   dot: 'bg-amber-500' },
+}
+
+// ── Reusable: DynamicTextList ─────────────────────────────────────────────────
+
+function DynamicTextList({ items, onAdd, onUpdate, onRemove, placeholder }) {
+  const [addText, setAddText] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+
+  const handleAdd = () => {
+    const v = addText.trim()
+    if (!v) return
+    onAdd(v)
+    setAddText('')
+  }
+
+  const handleSave = () => {
+    const v = editText.trim()
+    if (!v) return
+    onUpdate(editingId, v)
+    setEditingId(null)
+  }
+
   return (
-    <div className={`group relative rounded-xl border ${meta.border} ${meta.bg} p-3 transition-shadow hover:shadow-md`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${IMPACT_META[item.impact].cls}`}>
-              {IMPACT_META[item.impact].label}
-            </span>
-            <span className="text-[10px] text-slate-400">{CATEGORY_LABELS[item.category] || item.category}</span>
-          </div>
-          <p className="text-sm font-semibold text-slate-800 leading-snug">{item.title}</p>
-          <p className="text-xs text-slate-500 mt-1 leading-snug line-clamp-2">{item.description}</p>
+    <div className="space-y-1.5">
+      {items.map((item) => (
+        <div key={item.id} className="flex items-center gap-2 group min-h-8">
+          {editingId === item.id ? (
+            <>
+              <input value={editText} onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditingId(null) }}
+                className="flex-1 text-sm border border-blue-300 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-100" autoFocus />
+              <button onClick={handleSave} className="text-emerald-600 hover:text-emerald-700 shrink-0"><Save size={13} /></button>
+              <button onClick={() => setEditingId(null)} className="text-slate-400 shrink-0"><X size={13} /></button>
+            </>
+          ) : (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+              <span className="flex-1 text-sm text-slate-700">{item.value}</span>
+              <button onClick={() => { setEditingId(item.id); setEditText(item.value) }}
+                className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity shrink-0"><Edit3 size={12} /></button>
+              <button onClick={() => onRemove(item.id)}
+                className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity shrink-0"><Trash2 size={12} /></button>
+            </>
+          )}
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button onClick={() => onEdit(item)} className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition-colors">
-            <Edit3 size={11} className="text-slate-500 hover:text-blue-600" />
-          </button>
-          <button onClick={() => onDelete(item.id)} className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-300 transition-colors">
-            <Trash2 size={11} className="text-slate-500 hover:text-red-500" />
-          </button>
-        </div>
+      ))}
+      <div className="flex gap-2 pt-1">
+        <input value={addText} onChange={(e) => setAddText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder={placeholder || 'Thêm mục mới...'}
+          className="flex-1 text-sm border border-dashed border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-slate-50" />
+        <button onClick={handleAdd} disabled={!addText.trim()}
+          className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg transition-colors shrink-0">
+          <Plus size={11} /> Thêm
+        </button>
       </div>
     </div>
   )
 }
 
-function SwotQuadrant({ quadrant, items, onAdd, onEdit, onDelete }) {
-  const meta = QUADRANT_META[quadrant]
-  const Icon = meta.icon
+// ── Tab: Source model (7S / 5 Forces / PESTEL) ───────────────────────────────
+
+function SourceModelTab({ model, metaMap, storeKey }) {
+  const store = useSWOTStore()
+  const data = store[storeKey]
+
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-      <div className={`${meta.header} px-4 py-3 flex items-center justify-between`}>
-        <div className="flex items-center gap-2 text-white">
-          <Icon size={16} />
-          <span className="font-bold text-sm">{meta.label}</span>
-          <span className="font-light text-xs opacity-70">/ {meta.labelEn}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">{items.length}</span>
-          <button
-            onClick={() => onAdd(quadrant)}
-            className="w-6 h-6 rounded-md bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-          >
-            <Plus size={13} className="text-white" />
-          </button>
-        </div>
-      </div>
-      <div className={`flex-1 ${meta.bg} p-3 space-y-2 min-h-48 max-h-96 overflow-y-auto`}>
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-slate-400">
-            <Icon size={28} className="opacity-20 mb-2" />
-            <p className="text-xs">Chưa có mục nào</p>
-            <button onClick={() => onAdd(quadrant)} className="mt-2 text-xs text-blue-500 hover:underline">+ Thêm mục</button>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {Object.entries(metaMap).map(([factor, meta]) => {
+        const ring = COLOR_RING[meta.color] || COLOR_RING.blue
+        const items = data[factor] || []
+        return (
+          <div key={factor} className={`rounded-xl border p-4 ${ring}`}>
+            <div className="mb-3">
+              <p className="text-xs font-bold uppercase tracking-wide">{meta.label}</p>
+              <p className="text-[11px] opacity-70">{meta.vi}</p>
+            </div>
+            <DynamicTextList
+              items={items}
+              onAdd={(v) => store.addSourceItem(storeKey, factor, v)}
+              onUpdate={(id, v) => store.updateSourceItem(storeKey, factor, id, v)}
+              onRemove={(id) => store.removeSourceItem(storeKey, factor, id)}
+            />
           </div>
-        ) : (
-          items.map((item) => (
-            <SwotItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} />
-          ))
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Tab: SWOT picker ──────────────────────────────────────────────────────────
+
+function SwotTab() {
+  const store = useSWOTStore()
+  const { swotS, swotW, swotO, swotT, toggleSwotItem } = store
+
+  const allSevenS = store.getAllSevenSItems()
+  const allExternal = store.getAllExternalItems()
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* S — pick from 7S */}
+      <SwotPickerPanel
+        quadrant="S" meta={SWOT_META.S}
+        selected={swotS} opposite={swotW}
+        items={allSevenS}
+        factorMeta={SEVEN_S_META}
+        onToggle={(id) => toggleSwotItem('S', id)}
+      />
+      {/* W — pick from 7S */}
+      <SwotPickerPanel
+        quadrant="W" meta={SWOT_META.W}
+        selected={swotW} opposite={swotS}
+        items={allSevenS}
+        factorMeta={SEVEN_S_META}
+        onToggle={(id) => toggleSwotItem('W', id)}
+      />
+      {/* O — pick from 5 Forces + PESTEL */}
+      <SwotPickerPanel
+        quadrant="O" meta={SWOT_META.O}
+        selected={swotO} opposite={swotT}
+        items={allExternal}
+        factorMeta={{ ...FIVE_FORCES_META, ...PESTEL_META }}
+        onToggle={(id) => toggleSwotItem('O', id)}
+      />
+      {/* T — pick from 5 Forces + PESTEL */}
+      <SwotPickerPanel
+        quadrant="T" meta={SWOT_META.T}
+        selected={swotT} opposite={swotO}
+        items={allExternal}
+        factorMeta={{ ...FIVE_FORCES_META, ...PESTEL_META }}
+        onToggle={(id) => toggleSwotItem('T', id)}
+      />
+    </div>
+  )
+}
+
+function SwotPickerPanel({ quadrant, meta, selected, opposite, items, factorMeta, onToggle }) {
+  return (
+    <div className={`rounded-xl border ${meta.border} overflow-hidden`}>
+      <div className={`px-4 py-3 flex items-center gap-2 ${meta.bg}`}>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded ${meta.badge}`}>{quadrant}</span>
+        <div>
+          <p className="text-sm font-semibold text-slate-800">{meta.label}</p>
+          <p className="text-[11px] text-slate-500">{meta.desc}</p>
+        </div>
+        <span className="ml-auto text-xs font-semibold text-slate-600">{selected.length} đã chọn</span>
+      </div>
+
+      {/* Selected items */}
+      {selected.length > 0 && (
+        <div className={`px-4 py-2 ${meta.bg} border-b ${meta.border}`}>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase mb-1.5">Đã chọn</p>
+          <div className="space-y-1">
+            {selected.map((id) => {
+              const item = items.find((i) => i.id === id)
+              if (!item) return null
+              return (
+                <div key={id} className="flex items-center gap-2 group">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />
+                  <span className="flex-1 text-xs text-slate-700">{item.value}</span>
+                  <button onClick={() => onToggle(id)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity"><X size={11} /></button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Picker list */}
+      <div className="px-4 py-3 max-h-64 overflow-y-auto space-y-1 bg-white">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase mb-2">Chọn từ nguồn</p>
+        {items.map((item) => {
+          const isSelected = selected.includes(item.id)
+          const isUsedOpposite = opposite.includes(item.id)
+          const fm = factorMeta[item.factor]
+          return (
+            <label
+              key={item.id}
+              className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-colors group ${
+                isUsedOpposite ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-50'
+              }`}
+            >
+              <button
+                disabled={isUsedOpposite}
+                onClick={() => !isUsedOpposite && onToggle(item.id)}
+                className="mt-0.5 shrink-0"
+              >
+                {isSelected
+                  ? <CheckSquare size={14} className="text-blue-600" />
+                  : <Square size={14} className="text-slate-300" />
+                }
+              </button>
+              <div className="flex-1 min-w-0">
+                {fm && (
+                  <span className="text-[10px] text-slate-400 font-medium">{fm.vi} · </span>
+                )}
+                <span className="text-xs text-slate-700">{item.value}</span>
+              </div>
+            </label>
+          )
+        })}
+        {items.length === 0 && (
+          <p className="text-xs text-slate-400 italic py-4 text-center">Chưa có dữ liệu nguồn — hãy nhập ở tab trước</p>
         )}
       </div>
     </div>
   )
 }
 
-function SwotModal({ open, onClose, onSave, editItem, defaultQuadrant }) {
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
-    defaultValues: editItem ?? { quadrant: defaultQuadrant, title: '', description: '', impact: 'medium', category: 'brand' },
-  })
-  const quadrant = watch('quadrant')
+// ── Main page ─────────────────────────────────────────────────────────────────
 
-  if (!open) return null
-
-  const onSubmit = (data) => { onSave(data); reset(); onClose() }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className={`${QUADRANT_META[quadrant]?.header ?? 'bg-slate-700'} px-5 py-4 flex items-center justify-between`}>
-          <h3 className="text-white font-bold text-sm">{editItem ? 'Chỉnh sửa' : 'Thêm mục'} SWOT</h3>
-          <button onClick={onClose}><X size={18} className="text-white/70 hover:text-white" /></button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label-sm">Loại</label>
-              <select className="input-sm" {...register('quadrant', { required: true })}>
-                {Object.entries(QUADRANT_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label-sm">Mức độ ảnh hưởng</label>
-              <select className="input-sm" {...register('impact', { required: true })}>
-                {Object.entries(IMPACT_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="label-sm">Danh mục</label>
-            <select className="input-sm" {...register('category')}>
-              {(CATEGORIES[quadrant] ?? []).map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label-sm">Tiêu đề <span className="text-red-500">*</span></label>
-            <input className={clsx('input-sm', errors.title && 'border-red-400')} placeholder="Mô tả ngắn gọn..." {...register('title', { required: true })} />
-          </div>
-          <div>
-            <label className="label-sm">Mô tả chi tiết</label>
-            <textarea className="input-sm resize-none" rows={3} placeholder="Bằng chứng, số liệu, ví dụ cụ thể..." {...register('description')} />
-          </div>
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Hủy</button>
-            <button type="submit" className="flex-1 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors">
-              {editItem ? 'Cập nhật' : 'Thêm mục'}
-            </button>
-          </div>
-        </form>
-      </div>
-      <style>{`
-        .label-sm { display:block; font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
-        .input-sm { width:100%; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; font-size:13px; outline:none; transition:border-color .15s; background:white; }
-        .input-sm:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.1); }
-      `}</style>
-    </div>
-  )
-}
+const TABS = [
+  { id: '7s',        label: 'B2.1 Mô hình 7S' },
+  { id: 'fiveforces',label: 'B2.2 Mô hình 5 Áp lực' },
+  { id: 'pestel',    label: 'B2.3 PESTEL' },
+  { id: 'swot',      label: 'B2.4 Phân tích SWOT' },
+]
 
 export default function SwotPage() {
-  const { items, addItem, updateItem, deleteItem } = useSWOTStore()
+  const [activeTab, setActiveTab] = useState('7s')
   const navigate = useNavigate()
-  const [modal, setModal] = useState({ open: false, quadrant: 'strength', editItem: null })
+  const store = useSWOTStore()
 
-  const openAdd = (quadrant) => setModal({ open: true, quadrant, editItem: null })
-  const openEdit = (item) => setModal({ open: true, quadrant: item.quadrant, editItem: item })
-  const closeModal = () => setModal((m) => ({ ...m, open: false }))
-
-  const handleSave = (data) => {
-    if (modal.editItem) { updateItem(modal.editItem.id, data) }
-    else { addItem(data) }
+  const counts = {
+    '7s':         Object.values(store.sevenS).reduce((s, a) => s + a.length, 0),
+    fiveforces:   Object.values(store.fiveForces).reduce((s, a) => s + a.length, 0),
+    pestel:       Object.values(store.pestel).reduce((s, a) => s + a.length, 0),
+    swot:         store.swotS.length + store.swotW.length + store.swotO.length + store.swotT.length,
   }
 
-  const quadrants = ['strength', 'weakness', 'opportunity', 'threat']
-  const countByQ = Object.fromEntries(quadrants.map((q) => [q, items.filter((i) => i.quadrant === q).length]))
-
   return (
-    <div className="max-w-7xl mx-auto space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5 pb-10">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Phân tích SWOT</h1>
-          <p className="text-sm text-slate-500 mt-1">Xác định điểm mạnh, điểm yếu, cơ hội và thách thức</p>
+          <h1 className="text-2xl font-bold text-slate-900">B2. Xây dựng Chiến lược</h1>
+          <p className="text-sm text-slate-500 mt-1">Phân tích 7S, 5 Áp lực, PESTEL → SWOT → Chiến lược SO/ST/WO/WT</p>
         </div>
         <button
           onClick={() => navigate('/strategy-build/formulate')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
         >
-          Xây dựng Chiến lược
+          Tiếp theo: Xây dựng Chiến lược
           <ChevronRight size={16} />
         </button>
       </div>
 
-      {/* Summary tiles */}
-      <div className="grid grid-cols-4 gap-3">
-        {quadrants.map((q) => {
-          const meta = QUADRANT_META[q]
-          const Icon = meta.icon
-          return (
-            <div key={q} className={`rounded-xl border ${meta.border} ${meta.bg} px-4 py-3 flex items-center gap-3`}>
-              <div className={`w-9 h-9 rounded-xl ${meta.header} flex items-center justify-center`}>
-                <Icon size={16} className="text-white" />
-              </div>
-              <div>
-                <div className="text-xl font-bold text-slate-800">{countByQ[q]}</div>
-                <div className="text-xs text-slate-500">{meta.label}</div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex border-b border-slate-100 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex flex-col items-center gap-1 px-4 py-3.5 text-xs font-semibold transition-colors whitespace-nowrap border-b-2 ${
+                activeTab === tab.id
+                  ? 'text-blue-700 border-blue-500 bg-blue-50/50'
+                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                activeTab === tab.id ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+              }`}>{counts[tab.id]} mục</span>
+            </button>
+          ))}
+        </div>
 
-      {/* Matrix */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {quadrants.map((q) => (
-          <SwotQuadrant
-            key={q}
-            quadrant={q}
-            items={items.filter((i) => i.quadrant === q)}
-            onAdd={openAdd}
-            onEdit={openEdit}
-            onDelete={deleteItem}
-          />
-        ))}
+        <div className="p-5">
+          {activeTab === '7s' && (
+            <SourceModelTab model="sevenS" metaMap={SEVEN_S_META} storeKey="sevenS" />
+          )}
+          {activeTab === 'fiveforces' && (
+            <SourceModelTab model="fiveForces" metaMap={FIVE_FORCES_META} storeKey="fiveForces" />
+          )}
+          {activeTab === 'pestel' && (
+            <SourceModelTab model="pestel" metaMap={PESTEL_META} storeKey="pestel" />
+          )}
+          {activeTab === 'swot' && <SwotTab />}
+        </div>
       </div>
-
-      <SwotModal
-        open={modal.open}
-        onClose={closeModal}
-        onSave={handleSave}
-        editItem={modal.editItem}
-        defaultQuadrant={modal.quadrant}
-      />
     </div>
   )
 }
