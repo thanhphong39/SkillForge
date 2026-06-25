@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Lightbulb, Target, Map,
-  GitBranch, ListChecks, Scale, Rocket, ChevronLeft, ChevronRight,
-  ChevronDown, CheckCircle2, Circle, Loader2,
+  GitBranch, ListChecks, Scale, Rocket, ChevronDown,
+  CheckCircle2, Circle, Loader2, BarChart2, PenSquare,
+  FileText, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useUIStore } from '../../store/uiStore.js'
@@ -12,21 +13,21 @@ import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 const NAV_STEPS = [
   {
     step: 'B1', to: '/assessment', icon: ClipboardList,
-    label: 'Đánh giá',
+    label: 'Đánh giá hiện trạng',
   },
   {
     step: 'B2', to: '/strategy-build', icon: Lightbulb,
     label: 'Xây dựng Chiến lược',
     children: [
-      { to: '/strategy-build/swot',      label: 'B2.1–2.4 Phân tích' },
-      { to: '/strategy-build/formulate', label: 'B2.5 Chiến lược SO/ST/WO/WT' },
+      { to: '/strategy-build/swot',      label: 'Phân tích SWOT' },
+      { to: '/strategy-build/formulate', label: 'Chiến lược SO/ST/WO/WT' },
     ],
   },
   {
     step: 'B3', to: '/strategy-results', icon: Target,
     label: 'Kết quả chiến lược',
     children: [
-      { to: '/strategy-results/selection', label: 'Chọn chiến lược (1–2)' },
+      { to: '/strategy-results/selection', label: 'Chọn chiến lược' },
       { to: '/strategy-results/outcomes',  label: 'Tóm tắt đã chọn' },
     ],
   },
@@ -34,7 +35,7 @@ const NAV_STEPS = [
     step: 'B4', to: '/strategy-map', icon: Map,
     label: 'Bản đồ Chiến lược',
     children: [
-      { to: '/strategy-map/perspectives', label: 'Tạo mục tiêu & gộp bản đồ' },
+      { to: '/strategy-map/perspectives', label: 'Tạo mục tiêu & bản đồ' },
     ],
   },
   {
@@ -55,30 +56,17 @@ const NAV_STEPS = [
   },
 ]
 
+const TOOL_LINKS = [
+  { to: '/kpi-entry', icon: PenSquare, label: 'Nhập liệu KPI' },
+  { to: '/reports',   icon: FileText,  label: 'Báo cáo & Phân tích' },
+]
 
-function StepBadge({ step, status, collapsed }) {
-  const base = 'shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-colors'
-  if (status === 'completed') return (
-    <span className={clsx(base, 'bg-emerald-500/20 text-emerald-400')}>
-      {collapsed ? <CheckCircle2 size={12} /> : step}
-    </span>
-  )
-  if (status === 'active') return (
-    <span className={clsx(base, 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/50')}>
-      {collapsed ? <Loader2 size={11} className="animate-spin" /> : step}
-    </span>
-  )
-  return (
-    <span className={clsx(base, 'bg-slate-700 text-slate-400')}>
-      {collapsed ? <Circle size={10} /> : step}
-    </span>
-  )
-}
-
-function StatusIcon({ status }) {
-  if (status === 'completed') return <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
-  if (status === 'active')    return <Loader2 size={12} className="text-blue-400 animate-spin shrink-0" />
-  return null
+function StepStatus({ status }) {
+  if (status === 'completed')
+    return <CheckCircle2 size={13} className="text-[#3C50E0] shrink-0" />
+  if (status === 'active')
+    return <Loader2 size={13} className="text-[#3C50E0] animate-spin shrink-0" />
+  return <Circle size={13} className="text-[#4B5563] shrink-0" />
 }
 
 export function Sidebar() {
@@ -86,7 +74,6 @@ export function Sidebar() {
   const { steps, getCompletedCount } = useBSCWorkflowStore()
   const location = useLocation()
 
-  // Auto-expand steps that contain the active route
   const getInitialExpanded = () => {
     const set = new Set()
     NAV_STEPS.forEach(({ step, children }) => {
@@ -109,67 +96,73 @@ export function Sidebar() {
 
   return (
     <aside className={clsx(
-      'flex flex-col bg-slate-900 text-white transition-all duration-300 shrink-0 relative',
-      sidebarCollapsed ? 'w-16' : 'w-64'
+      'flex flex-col bg-[#1C2434] transition-all duration-300 shrink-0 relative h-full overflow-hidden',
+      sidebarCollapsed ? 'w-17.5' : 'w-65'
     )}>
+
       {/* Logo */}
       <div className={clsx(
-        'flex items-center h-16 px-4 border-b border-slate-700/60 shrink-0',
-        sidebarCollapsed ? 'justify-center' : 'gap-1'
+        'flex items-center h-17.5 border-b border-white/6 shrink-0 px-4',
+        sidebarCollapsed ? 'justify-center' : 'gap-3'
       )}>
-        <div className="w-16 h-16 flex items-center justify-center shrink-0 -ml-2">
-          <img src="/logoSkill.png" alt="SkillForge Logo" className="w-full h-full object-contain scale-125" />
+        <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+          <img src="/logoSkill.png" alt="SkillForge" className="w-full h-full object-contain" />
         </div>
         {!sidebarCollapsed && (
-          <div className="min-w-0">
-            <div className="font-bold text-sm leading-tight text-white -ml-1">SkillForge</div>
+          <div>
+            <span className="text-white font-bold text-lg leading-none tracking-tight">SkillForge</span>
+            <p className="text-[#8D98A7] text-[10px] mt-0.5">BSC Management</p>
           </div>
         )}
       </div>
 
-      {/* Progress bar */}
+      {/* Progress */}
       {!sidebarCollapsed && (
-        <div className="px-4 py-3 border-b border-slate-700/60">
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Tiến độ triển khai</span>
-            <span className="text-[10px] text-blue-400 font-semibold">{completedCount}/8 bước</span>
+        <div className="px-4 py-3 border-b border-white/6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] text-[#8D98A7] font-medium">Tiến độ triển khai</span>
+            <span className="text-[11px] text-[#3C50E0] font-bold">{completedCount}/8</span>
           </div>
-          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+          <div className="h-1 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-linear-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-500"
+              className="h-full bg-[#3C50E0] rounded-full transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Home */}
-      <div className="px-2 pt-3 pb-1">
-        {!sidebarCollapsed && (
-          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-2 mb-2">Tổng quan</p>
-        )}
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) => clsx(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
-            isActive
-              ? 'bg-blue-600/20 text-blue-400 border-l-2 border-blue-500'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-          )}
-          title={sidebarCollapsed ? 'Tổng quan' : undefined}
-        >
-          <LayoutDashboard size={17} className="shrink-0" />
-          {!sidebarCollapsed && <span className="font-medium">Tổng quan</span>}
-        </NavLink>
-      </div>
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 scrollbar-thin scrollbar-thumb-white/10">
 
-      {/* BSC Steps */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 scrollbar-thin">
+        {/* Section: Tổng quan */}
         {!sidebarCollapsed && (
-          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-2 pt-2 pb-2">
-            TRIỂN KHAI BSC
+          <p className="text-[10px] text-[#8D98A7] font-semibold uppercase tracking-[0.12em] px-3 pb-2">
+            Menu
           </p>
         )}
+
+        <NavLink
+          to="/dashboard"
+          title={sidebarCollapsed ? 'Tổng quan' : undefined}
+          className={({ isActive }) => clsx(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+            isActive
+              ? 'bg-[#3C50E0] text-white'
+              : 'text-[#DEE4EE] hover:bg-white/6 hover:text-white'
+          )}
+        >
+          <LayoutDashboard size={18} className="shrink-0" />
+          {!sidebarCollapsed && <span>Tổng quan</span>}
+        </NavLink>
+
+        {/* Section: BSC */}
+        {!sidebarCollapsed && (
+          <p className="text-[10px] text-[#8D98A7] font-semibold uppercase tracking-[0.12em] px-3 pt-4 pb-2">
+            Triển khai BSC
+          </p>
+        )}
+        {sidebarCollapsed && <div className="my-2 border-t border-white/6" />}
 
         {NAV_STEPS.map(({ step, to, icon: Icon, label, children }) => {
           const status = steps[step]?.status ?? 'pending'
@@ -184,80 +177,78 @@ export function Sidebar() {
               <NavLink
                 key={step}
                 to={hasChildren ? children[0].to : to}
-                title={label}
+                title={`${step} · ${label}`}
                 className={clsx(
-                  'flex items-center justify-center py-2.5 rounded-lg transition-colors',
+                  'flex items-center justify-center py-2.5 rounded-lg transition-all',
                   isParentActive
-                    ? 'bg-blue-600/20 text-blue-400'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-[#3C50E0] text-white'
+                    : 'text-[#DEE4EE] hover:bg-white/6 hover:text-white'
                 )}
               >
-                <StepBadge step={step} status={status} collapsed />
+                <Icon size={18} className="shrink-0" />
               </NavLink>
             )
           }
 
           return (
             <div key={step}>
-              {/* Parent row */}
               {hasChildren ? (
                 <button
                   onClick={() => toggleExpand(step)}
                   className={clsx(
-                    'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-left',
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left',
                     isParentActive
-                      ? 'bg-blue-600/10 text-blue-300 border-l-2 border-blue-500'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-white/8 text-white'
+                      : 'text-[#DEE4EE] hover:bg-white/6 hover:text-white'
                   )}
                 >
-                  <StepBadge step={step} status={status} />
-                  <Icon size={15} className="shrink-0 text-slate-400" />
-                  <span className="font-medium flex-1 truncate text-[13px]">{label}</span>
-                  <StatusIcon status={status} />
-                  <ChevronDown
-                    size={13}
-                    className={clsx(
-                      'shrink-0 text-slate-500 transition-transform duration-200',
-                      isExpanded && 'rotate-180'
-                    )}
-                  />
+                  <Icon size={18} className="shrink-0" />
+                  <span className="flex-1 truncate">{label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <StepStatus status={status} />
+                    <ChevronDown
+                      size={14}
+                      className={clsx(
+                        'text-[#8D98A7] transition-transform duration-200',
+                        isExpanded && 'rotate-180'
+                      )}
+                    />
+                  </div>
                 </button>
               ) : (
                 <NavLink
                   to={to}
                   className={({ isActive }) => clsx(
-                    'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
                     isActive
-                      ? 'bg-blue-600/20 text-blue-400 border-l-2 border-blue-500'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-[#3C50E0] text-white'
+                      : 'text-[#DEE4EE] hover:bg-white/6 hover:text-white'
                   )}
                 >
-                  <StepBadge step={step} status={status} />
-                  <Icon size={15} className="shrink-0 text-slate-400" />
-                  <span className="font-medium flex-1 truncate text-[13px]">{label}</span>
-                  <StatusIcon status={status} />
+                  <Icon size={18} className="shrink-0" />
+                  <span className="flex-1 truncate">{label}</span>
+                  <StepStatus status={status} />
                 </NavLink>
               )}
 
-              {/* Children */}
               {hasChildren && (
                 <div className={clsx(
                   'overflow-hidden transition-all duration-200',
-                  isExpanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+                  isExpanded ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'
                 )}>
-                  <div className="ml-5 pl-3 border-l border-slate-700/60 mt-0.5 space-y-0.5 pb-1">
+                  <div className="ml-4 mt-1 mb-1 border-l border-white/10 pl-3 space-y-0.5">
                     {children.map((child) => (
                       <NavLink
                         key={child.to}
                         to={child.to}
                         className={({ isActive }) => clsx(
-                          'flex items-center gap-2 px-3 py-2 rounded-md text-[12px] transition-colors',
+                          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all',
                           isActive
-                            ? 'bg-blue-600/20 text-blue-400'
-                            : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                            ? 'text-[#3C50E0] bg-[#3C50E0]/10'
+                            : 'text-[#8D98A7] hover:text-white hover:bg-white/6'
                         )}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
                         {child.label}
                       </NavLink>
                     ))}
@@ -268,18 +259,48 @@ export function Sidebar() {
           )
         })}
 
+        {/* Section: Tools */}
+        {!sidebarCollapsed && (
+          <p className="text-[10px] text-[#8D98A7] font-semibold uppercase tracking-[0.12em] px-3 pt-4 pb-2">
+            Công cụ
+          </p>
+        )}
+        {sidebarCollapsed && <div className="my-2 border-t border-white/6" />}
+
+        {TOOL_LINKS.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            title={sidebarCollapsed ? label : undefined}
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+              sidebarCollapsed && 'justify-center',
+              isActive
+                ? 'bg-[#3C50E0] text-white'
+                : 'text-[#DEE4EE] hover:bg-white/6 hover:text-white'
+            )}
+          >
+            <Icon size={18} className="shrink-0" />
+            {!sidebarCollapsed && <span>{label}</span>}
+          </NavLink>
+        ))}
       </nav>
 
       {/* Collapse toggle */}
-      <button
-        onClick={toggleSidebar}
-        className="flex items-center justify-center h-10 mx-2 mb-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer border border-slate-700/50 shrink-0"
-      >
-        {sidebarCollapsed
-          ? <ChevronRight size={15} />
-          : <><ChevronLeft size={15} /><span className="text-xs ml-1.5">Thu gọn</span></>
-        }
-      </button>
+      <div className="px-3 py-3 border-t border-white/6 shrink-0">
+        <button
+          onClick={toggleSidebar}
+          className={clsx(
+            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[#8D98A7] hover:text-white hover:bg-white/6 transition-all text-sm',
+            sidebarCollapsed && 'justify-center'
+          )}
+        >
+          {sidebarCollapsed
+            ? <PanelLeftOpen size={18} />
+            : <><PanelLeftClose size={18} /><span className="font-medium">Thu gọn</span></>
+          }
+        </button>
+      </div>
     </aside>
   )
 }
