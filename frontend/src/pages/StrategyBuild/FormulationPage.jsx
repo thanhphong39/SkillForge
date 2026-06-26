@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Edit3, ChevronRight, X, AlertCircle, CheckSquare, Square } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
-import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 
 const TYPE_META = {
   SO: { label: 'SO — Tấn công',       desc: 'Điểm mạnh × Cơ hội',     badge: 'bg-emerald-600 text-white', bg: 'bg-emerald-50',  border: 'border-emerald-200' },
@@ -276,12 +275,12 @@ function StrategyCard({ strategy, allItems, onEdit, onDelete }) {
 
 export default function FormulationPage() {
   const store = useSWOTStore()
-  const { strategies, addStrategy, updateStrategy, deleteStrategy, validate } = store
-  const { markStepComplete } = useBSCWorkflowStore()
+  const { strategies, addStrategy, updateStrategy, deleteStrategy, completeB2 } = store
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('SO')
   const [modal, setModal] = useState({ open: false, editStrategy: null })
   const [errors, setErrors] = useState([])
+  const [completing, setCompleting] = useState(false)
 
   const allItems = [...store.getAllSevenSItems(), ...store.getAllExternalItems()]
 
@@ -289,19 +288,20 @@ export default function FormulationPage() {
   const openEdit = (s) => setModal({ open: true, editStrategy: s })
   const closeModal = () => setModal({ open: false, editStrategy: null })
 
-  const handleSave = (data) => {
+  const handleSave = async (data) => {
     if (modal.editStrategy) {
-      updateStrategy(modal.editStrategy.id, data)
+      await updateStrategy(modal.editStrategy.id, data)
     } else {
-      addStrategy(data)
+      await addStrategy(data)
     }
   }
 
-  const handleComplete = () => {
-    const errs = validate()
+  const handleComplete = async () => {
+    setCompleting(true)
+    const errs = await completeB2()
+    setCompleting(false)
     if (errs.length > 0) { setErrors(errs); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
     setErrors([])
-    markStepComplete('B2')
     navigate('/strategy-results/selection')
   }
 
@@ -325,9 +325,9 @@ export default function FormulationPage() {
               <Plus size={15} /> Thêm chiến lược
             </button>
           )}
-          <button onClick={handleComplete}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
-            Hoàn thành B2 <ChevronRight size={16} />
+          <button onClick={handleComplete} disabled={completing}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+            {completing ? 'Đang lưu...' : 'Hoàn thành B2'} <ChevronRight size={16} />
           </button>
         </div>
       </div>

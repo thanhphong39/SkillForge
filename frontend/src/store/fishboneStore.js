@@ -1,96 +1,221 @@
 import { create } from 'zustand'
+import fishboneService from '../services/fishboneService.js'
+import departmentService from '../services/departmentService.js'
+import { useBscContextStore } from './bscContextStore.js'
+import { useBSCWorkflowStore } from './bscWorkflowStore.js'
 
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
+const uid = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
 
-export const MOCK_DEPARTMENTS = [
-  { id: 'dept-hr',      name: 'Nhân sự (HR)',         color: '#8b5cf6' },
-  { id: 'dept-sales',   name: 'Kinh doanh (Sales)',   color: '#10b981' },
-  { id: 'dept-mkt',     name: 'Marketing',            color: '#f59e0b' },
-  { id: 'dept-product', name: 'Sản phẩm (Product)',   color: '#3b82f6' },
-  { id: 'dept-ops',     name: 'Vận hành (Ops)',       color: '#ef4444' },
-  { id: 'dept-it',      name: 'IT',                   color: '#0891b2' },
-]
+const DEPT_COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#0891b2', '#ec4899', '#84cc16']
 
 export const useFishboneStore = create((set, get) => ({
-  departments: MOCK_DEPARTMENTS,
-  // Simulated current view: 'ceo' or dept ID
+  departments: [],
   viewAs: 'ceo',
-  currentDeptId: MOCK_DEPARTMENTS[0].id,
+  currentDeptId: null,
 
-  // participations[deptId][objectiveId] = true | false
+  // participations[deptId][objectiveId] = participationId (UUID string) | null
   participations: {},
 
-  // deptKPIs[deptId][objectiveId] = [{id, name, description}]
+  // deptKPIs[deptId][objectiveId] = [{id (backend UUID), name, description}]
   deptKPIs: {},
+
+  loading: false,
+  saving: false,
+  error: null,
+
+  // ── Load departments from backend ─────────────────────────────────────────
+  loadDepartments: async () => {
+    const { companyId } = useBscContextStore.getState()
+    if (!companyId) return
+    set({ loading: true })
+    try {
+      const depts = await departmentService.listByCompany(companyId)
+      const mapped = (depts || []).map((d, i) => ({
+        id: d.id,
+        name: d.name,
+        color: DEPT_COLORS[i % DEPT_COLORS.length],
+      }))
+      set({
+        departments: mapped,
+        currentDeptId: mapped[0]?.id ?? null,
+        loading: false,
+      })
+    } catch {
+      set({ loading: false })
+    }
+  },
 
   setViewAs: (val) => set({ viewAs: val }),
   setCurrentDept: (deptId) => set({ currentDeptId: deptId }),
 
-  // Toggle a department's participation in an objective
-  toggleParticipation: (deptId, objectiveId) => set((state) => {
-    const deptPart = state.participations[deptId] ?? {}
-    const current = !!deptPart[objectiveId]
-    return {
-      participations: {
-        ...state.participations,
-        [deptId]: { ...deptPart, [objectiveId]: !current },
-      },
+  // ── Toggle participation ──────────────────────────────────────────────────
+  toggleParticipation: async (deptId, objectiveId) => {
+    const { participations } = get()
+    const deptPart = participations[deptId] ?? {}
+    const existingParticipationId = deptPart[objectiveId]
+    const strategyId = useBscContextStore.getState().strategyId
+
+    if (existingParticipationId) {
+      // Remove participation
+      set((state) => ({
+        participations: {
+          ...state.participations,
+          [deptId]: { ...state.participations[deptId], [objectiveId]: null },
+        },
+      }))
+      if (strategyId) {
+        fishboneService.removeParticipation(existingParticipationId).catch(console.error)
+      }
+    } else {
+      // Join participation
+      let participationId = uid()
+      if (strategyId) {
+        try {
+          const resp = await fishboneService.joinFinalObjective(strategyId, {
+            finalStrategicObjectiveId: objectiveId,
+            departmentId: deptId,
+          })
+          if (resp?.id) participationId = resp.id
+        } catch (e) {
+          console.error('joinFinalObjective failed:', e)
+        }
+      }
+      set((state) => ({
+        participations: {
+          ...state.participations,
+          [deptId]: { ...(state.participations[deptId] ?? {}), [objectiveId]: participationId },
+        },
+      }))
     }
-  }),
+  },
 
   isParticipating: (deptId, objectiveId) => {
     const { participations } = get()
     return !!(participations[deptId] ?? {})[objectiveId]
   },
 
-  addKPI: (deptId, objectiveId, name, description = '') => set((state) => {
-    const deptKPI = state.deptKPIs[deptId] ?? {}
-    const existing = deptKPI[objectiveId] ?? []
-    const newKPI = { id: uid(), name: name.trim(), description: description.trim() }
-    return {
-      deptKPIs: {
-        ...state.deptKPIs,
-        [deptId]: { ...deptKPI, [objectiveId]: [...existing, newKPI] },
-      },
-    }
-  }),
+  // ── KPI CRUD ──────────────────────────────────────────────────────────────
+  addKPI: async (deptId, objectiveId, name, description = '') => {
+    const { participations } = get()
+    const participationId = (participations[deptId] ?? {})[objectiveId]
+    const { strategyId } = useBscContextStore.getState()
 
-  updateKPI: (deptId, objectiveId, kpiId, updates) => set((state) => {
-    const deptKPI = state.deptKPIs[deptId] ?? {}
-    const existing = deptKPI[objectiveId] ?? []
-    return {
-      deptKPIs: {
-        ...state.deptKPIs,
-        [deptId]: {
-          ...deptKPI,
-          [objectiveId]: existing.map((k) => (k.id === kpiId ? { ...k, ...updates } : k)),
+    const tempId = `temp-${uid()}`
+    // Optimistic add
+    set((state) => {
+      const deptKPI = state.deptKPIs[deptId] ?? {}
+      const existing = deptKPI[objectiveId] ?? []
+      return {
+        deptKPIs: {
+          ...state.deptKPIs,
+          [deptId]: { ...deptKPI, [objectiveId]: [...existing, { id: tempId, name: name.trim(), description: description.trim() }] },
         },
-      },
-    }
-  }),
+      }
+    })
 
-  removeKPI: (deptId, objectiveId, kpiId) => set((state) => {
-    const deptKPI = state.deptKPIs[deptId] ?? {}
-    const existing = deptKPI[objectiveId] ?? []
-    return {
-      deptKPIs: {
-        ...state.deptKPIs,
-        [deptId]: { ...deptKPI, [objectiveId]: existing.filter((k) => k.id !== kpiId) },
-      },
+    if (strategyId && participationId) {
+      try {
+        const kpi = await fishboneService.createDepartmentKpi({
+          bscStrategyId: strategyId,
+          finalStrategicObjectiveId: objectiveId,
+          departmentId: deptId,
+          departmentParticipationId: participationId,
+          name: name.trim(),
+          description: description.trim(),
+          displayOrder: (get().deptKPIs[deptId]?.[objectiveId] ?? []).length - 1,
+        })
+        // Replace tempId with real backend id
+        set((state) => {
+          const deptKPI = state.deptKPIs[deptId] ?? {}
+          return {
+            deptKPIs: {
+              ...state.deptKPIs,
+              [deptId]: {
+                ...deptKPI,
+                [objectiveId]: (deptKPI[objectiveId] ?? []).map((k) =>
+                  k.id === tempId ? { ...k, id: kpi.id } : k
+                ),
+              },
+            },
+          }
+        })
+      } catch (e) {
+        // Rollback
+        set((state) => {
+          const deptKPI = state.deptKPIs[deptId] ?? {}
+          return {
+            deptKPIs: {
+              ...state.deptKPIs,
+              [deptId]: {
+                ...deptKPI,
+                [objectiveId]: (deptKPI[objectiveId] ?? []).filter((k) => k.id !== tempId),
+              },
+            },
+            error: e.message,
+          }
+        })
+      }
     }
-  }),
+  },
 
-  // Get all KPIs for an objective across all depts
+  updateKPI: async (deptId, objectiveId, kpiId, updates) => {
+    // Optimistic update
+    set((state) => {
+      const deptKPI = state.deptKPIs[deptId] ?? {}
+      return {
+        deptKPIs: {
+          ...state.deptKPIs,
+          [deptId]: {
+            ...deptKPI,
+            [objectiveId]: (deptKPI[objectiveId] ?? []).map((k) =>
+              k.id === kpiId ? { ...k, ...updates } : k
+            ),
+          },
+        },
+      }
+    })
+    fishboneService
+      .updateDepartmentKpi(kpiId, {
+        name: updates.name,
+        description: updates.description ?? '',
+      })
+      .catch(console.error)
+  },
+
+  removeKPI: async (deptId, objectiveId, kpiId) => {
+    set((state) => {
+      const deptKPI = state.deptKPIs[deptId] ?? {}
+      return {
+        deptKPIs: {
+          ...state.deptKPIs,
+          [deptId]: {
+            ...deptKPI,
+            [objectiveId]: (deptKPI[objectiveId] ?? []).filter((k) => k.id !== kpiId),
+          },
+        },
+      }
+    })
+    fishboneService.deleteDepartmentKpi(kpiId).catch(console.error)
+  },
+
+  // ── Read helpers ──────────────────────────────────────────────────────────
   getObjectiveKPIs: (objectiveId) => {
     const { departments, deptKPIs, participations } = get()
     return departments
       .filter((d) => !!(participations[d.id] ?? {})[objectiveId])
       .flatMap((d) =>
-        (deptKPIs[d.id]?.[objectiveId] ?? []).map((k) => ({ ...k, deptId: d.id, deptName: d.name, deptColor: d.color }))
+        (deptKPIs[d.id]?.[objectiveId] ?? []).map((k) => ({
+          ...k,
+          deptId: d.id,
+          deptName: d.name,
+          deptColor: d.color,
+        }))
       )
   },
 
-  // All KPIs for a department (flat)
   getDeptAllKPIs: (deptId) => {
     const { deptKPIs } = get()
     const deptMap = deptKPIs[deptId] ?? {}
@@ -99,7 +224,6 @@ export const useFishboneStore = create((set, get) => ({
     )
   },
 
-  // All KPIs flat (for B6/B7 consumption)
   getAllKPIs: (objectives) => {
     const { departments, deptKPIs, participations } = get()
     return (objectives ?? []).flatMap((obj) =>
@@ -119,6 +243,7 @@ export const useFishboneStore = create((set, get) => ({
     )
   },
 
+  // ── Validate ──────────────────────────────────────────────────────────────
   validate: (objectives) => {
     const state = get()
     const errors = []
@@ -131,5 +256,25 @@ export const useFishboneStore = create((set, get) => ({
       })
     })
     return errors
+  },
+
+  // ── Complete B5 ───────────────────────────────────────────────────────────
+  complete: async (objectives) => {
+    const strategyId = useBscContextStore.getState().strategyId
+    if (!strategyId) return ['Chưa khởi tạo chiến lược.']
+
+    const errs = get().validate(objectives)
+    if (errs.length > 0) return errs
+
+    set({ saving: true, error: null })
+    try {
+      await fishboneService.complete(strategyId)
+      useBSCWorkflowStore.getState().markStepComplete('B5')
+      set({ saving: false })
+      return []
+    } catch (e) {
+      set({ saving: false, error: e.message })
+      return [e.message]
+    }
   },
 }))

@@ -4,7 +4,6 @@ import {
   ChevronRight, CheckSquare, Square, AlertCircle, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
-import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 
 const TYPE_META = {
   SO: { label: 'SO — Tấn công',       desc: 'Điểm mạnh × Cơ hội',     badge: 'bg-emerald-600 text-white', bg: 'bg-emerald-50',  border: 'border-emerald-200' },
@@ -146,10 +145,10 @@ const TYPES = ['SO', 'ST', 'WO', 'WT']
 
 export default function SelectionPage() {
   const store = useSWOTStore()
-  const { strategies, b3Selected, b3Notes, toggleB3Strategy, setB3Note, validateB3 } = store
-  const { markStepComplete } = useBSCWorkflowStore()
+  const { strategies, b3Selected, b3Notes, toggleB3Strategy, setB3Note, completeB3 } = store
   const navigate = useNavigate()
   const [errors, setErrors] = useState([])
+  const [completing, setCompleting] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
 
   const allItems = [...store.getAllSevenSItems(), ...store.getAllExternalItems()]
@@ -158,11 +157,12 @@ export default function SelectionPage() {
     ? strategies
     : strategies.filter((s) => s.type === activeTab)
 
-  const handleComplete = () => {
-    const errs = validateB3()
+  const handleComplete = async () => {
+    setCompleting(true)
+    const errs = await completeB3()
+    setCompleting(false)
     if (errs.length > 0) { setErrors(errs); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
     setErrors([])
-    markStepComplete('B3')
     navigate('/strategy-map/perspectives')
   }
 
@@ -178,9 +178,10 @@ export default function SelectionPage() {
         </div>
         <button
           onClick={handleComplete}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
+          disabled={completing}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
         >
-          Hoàn thành B3 <ChevronRight size={16} />
+          {completing ? 'Đang lưu...' : 'Hoàn thành B3'} <ChevronRight size={16} />
         </button>
       </div>
 
@@ -319,9 +320,10 @@ export default function SelectionPage() {
           {/* Complete button */}
           <button
             onClick={handleComplete}
-            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            disabled={completing}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
           >
-            Hoàn thành B3 <ChevronRight size={16} />
+            {completing ? 'Đang lưu...' : 'Hoàn thành B3'} <ChevronRight size={16} />
           </button>
         </div>
       </div>

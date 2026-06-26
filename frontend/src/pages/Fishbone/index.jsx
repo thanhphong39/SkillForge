@@ -1,11 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Plus, X, Edit3, Trash2, AlertCircle, Eye, Users, Check } from 'lucide-react'
 import clsx from 'clsx'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useStrategyMapStore } from '../../store/strategyMapStore.js'
-import { useFishboneStore, MOCK_DEPARTMENTS } from '../../store/fishboneStore.js'
-import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
+import { useFishboneStore } from '../../store/fishboneStore.js'
 
 const PERSPECTIVES = [
   { key: 'FINANCIAL',           label: 'Tài chính',             color: '#16a34a', badge: 'bg-emerald-100 text-emerald-700' },
@@ -217,11 +216,11 @@ export default function FishbonePage() {
   const { b3Selected } = useSWOTStore()
   const mapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
-  const { markStepComplete } = useBSCWorkflowStore()
   const navigate = useNavigate()
   const [errors, setErrors] = useState([])
+  const [completing, setCompleting] = useState(false)
 
-  const { viewAs, setViewAs, currentDeptId, setCurrentDept, departments } = fishboneStore
+  const { viewAs, setViewAs, currentDeptId, setCurrentDept, departments, loadDepartments } = fishboneStore
   const objectives = mapStore.getEffectiveFinalObjectives(b3Selected)
   const currentDept = departments.find((d) => d.id === currentDeptId) ?? departments[0]
 
@@ -230,15 +229,21 @@ export default function FishbonePage() {
     departments.some((d) => !!(fishboneStore.participations[d.id] ?? {})[o.id])
   )
 
-  const handleComplete = () => {
+  useEffect(() => {
+    if (departments.length === 0) loadDepartments()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleComplete = async () => {
     if (objectives.length === 0) {
       setErrors(['Chưa có mục tiêu chiến lược từ B4. Vui lòng hoàn thành B4 trước.'])
       return
     }
-    const errs = fishboneStore.validate(objectives)
+    setCompleting(true)
+    const errs = await fishboneStore.complete(objectives)
+    setCompleting(false)
     if (errs.length > 0) { setErrors(errs); return }
     setErrors([])
-    markStepComplete('B5')
     navigate('/weight-allocation')
   }
 
@@ -254,9 +259,10 @@ export default function FishbonePage() {
         </div>
         <button
           onClick={handleComplete}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
+          disabled={completing}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
         >
-          Hoàn thành B5 <ChevronRight size={16} />
+          {completing ? 'Đang lưu...' : 'Hoàn thành B5'} <ChevronRight size={16} />
         </button>
       </div>
 

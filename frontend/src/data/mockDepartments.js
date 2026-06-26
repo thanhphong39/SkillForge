@@ -1,10 +1,10 @@
 export const mockDepartments = [
-  { id: 'dept-bgd', name: 'Ban Giám đốc',      code: 'BGD', managerId: 'usr-000', parentId: null, color: '#1e40af' },
-  { id: 'dept-kd',  name: 'Kinh doanh',         code: 'KD',  managerId: 'usr-001', parentId: null, color: '#16a34a' },
-  { id: 'dept-kt',  name: 'Kế toán - Tài chính', code: 'KT',  managerId: 'usr-002', parentId: null, color: '#dc2626' },
-  { id: 'dept-nv',  name: 'Nhân sự',             code: 'NV',  managerId: 'usr-003', parentId: null, color: '#9333ea' },
-  { id: 'dept-sx',  name: 'Sản xuất',            code: 'SX',  managerId: 'usr-004', parentId: null, color: '#d97706' },
-  { id: 'dept-it',  name: 'Kỹ thuật - CNTT',     code: 'IT',  managerId: 'usr-005', parentId: null, color: '#0891b2' },
+  { id: 'dept-hr',      name: 'Nhân sự (HR)',        color: '#8b5cf6' },
+  { id: 'dept-sales',   name: 'Kinh doanh (Sales)',  color: '#10b981' },
+  { id: 'dept-mkt',     name: 'Marketing',           color: '#f59e0b' },
+  { id: 'dept-product', name: 'Sản phẩm (Product)',  color: '#3b82f6' },
+  { id: 'dept-ops',     name: 'Vận hành (Ops)',      color: '#ef4444' },
+  { id: 'dept-it',      name: 'IT',                  color: '#0891b2' },
 ]
 
-export const DEPT_MAP = Object.fromEntries(mockDepartments.map(d => [d.id, d]))
+export const DEPT_MAP = Object.fromEntries(mockDepartments.map((d) => [d.id, d]))

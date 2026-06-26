@@ -4,7 +4,7 @@ import { Card, CardHeader } from '../../components/ui/Card.jsx'
 import { Input, Select } from '../../components/ui/Input.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { Save, Building2, Info } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const INDUSTRIES = [
   { value: 'manufacturing', label: 'Sản xuất' },
@@ -21,10 +21,13 @@ const INDUSTRIES = [
 export default function CompanySetupPage() {
   const { company, updateCompany } = useAdminStore()
   const [saved, setSaved] = useState(false)
-  const { register, handleSubmit } = useForm({ defaultValues: company })
+  const { register, handleSubmit, reset } = useForm({ defaultValues: company })
 
-  function onSubmit(data) {
-    updateCompany(data)
+  // Sync form when store data loads from API
+  useEffect(() => { reset(company) }, [company.name])
+
+  async function onSubmit(data) {
+    await updateCompany(data)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }

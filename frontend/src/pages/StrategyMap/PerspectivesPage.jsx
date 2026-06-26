@@ -4,7 +4,6 @@ import { Plus, X, Edit3, Trash2, ChevronRight, ArrowRight, AlertCircle, Check, G
 import clsx from 'clsx'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useStrategyMapStore } from '../../store/strategyMapStore.js'
-import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 
 const PERSPECTIVES = [
   { key: 'FINANCIAL',           label: 'Tài chính',             color: '#16a34a', bg: 'bg-emerald-50', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
@@ -372,7 +371,6 @@ function MergeStep({ strategyIds, strategies, strategyObjectives, mapStore }) {
 export default function PerspectivesPage() {
   const { strategies, b3Selected } = useSWOTStore()
   const mapStore = useStrategyMapStore()
-  const { markStepComplete } = useBSCWorkflowStore()
   const navigate = useNavigate()
 
   const { strategyObjectives, strategyCausalLinks, initForStrategies, addObjective, updateObjective, removeObjective, addCausalLink, removeCausalLink } = mapStore
@@ -381,6 +379,7 @@ export default function PerspectivesPage() {
   const [activeStrategyTab, setActiveStrategyTab] = useState(b3Selected[0] ?? null)
   const [viewMode, setViewMode] = useState('map')
   const [errors, setErrors] = useState([])
+  const [completing, setCompleting] = useState(false)
   const [linkSource, setLinkSource] = useState('')
   const [linkTarget, setLinkTarget] = useState('')
 
@@ -424,11 +423,12 @@ export default function PerspectivesPage() {
     }
   }
 
-  const handleComplete = () => {
-    const errs = mapStore.validate(b3Selected)
+  const handleComplete = async () => {
+    setCompleting(true)
+    const errs = await mapStore.complete(b3Selected)
+    setCompleting(false)
     if (errs.length > 0) { setErrors(errs); return }
     setErrors([])
-    markStepComplete('B4')
     navigate('/fishbone')
   }
 
@@ -451,9 +451,10 @@ export default function PerspectivesPage() {
         </div>
         <button
           onClick={handleComplete}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
+          disabled={completing}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shrink-0"
         >
-          Hoàn thành B4 <ChevronRight size={16} />
+          {completing ? 'Đang lưu...' : 'Hoàn thành B4'} <ChevronRight size={16} />
         </button>
       </div>
 

@@ -9,7 +9,6 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { useAssessmentStore } from '../../store/assessmentStore.js'
-import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 
 const PIE_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#a855f7']
 
@@ -492,20 +491,21 @@ function SimpleListSection({ icon, iconColor, title, subtitle, field, placeholde
 // Main page
 // ────────────────────────────────────────────────────────────
 export default function AssessmentPage() {
-  const { validate } = useAssessmentStore()
-  const { markStepComplete } = useBSCWorkflowStore()
+  const { complete } = useAssessmentStore()
   const navigate = useNavigate()
   const [errors, setErrors] = useState([])
+  const [completing, setCompleting] = useState(false)
 
-  const handleComplete = () => {
-    const errs = validate()
+  const handleComplete = async () => {
+    setCompleting(true)
+    const errs = await complete()
+    setCompleting(false)
     if (errs.length > 0) {
       setErrors(errs)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
     setErrors([])
-    markStepComplete('B1')
     navigate('/strategy-build/swot')
   }
 
@@ -519,9 +519,10 @@ export default function AssessmentPage() {
         </div>
         <button
           onClick={handleComplete}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-blue-500/30 shrink-0"
+          disabled={completing}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-blue-500/30 shrink-0"
         >
-          Hoàn thành B1
+          {completing ? 'Đang lưu...' : 'Hoàn thành B1'}
           <ChevronRight size={16} />
         </button>
       </div>
@@ -597,9 +598,10 @@ export default function AssessmentPage() {
       <div className="flex justify-end pt-2">
         <button
           onClick={handleComplete}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-sm shadow-blue-500/30"
+          disabled={completing}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors shadow-sm shadow-blue-500/30"
         >
-          Hoàn thành B1 — Tiếp theo: Xây dựng chiến lược
+          {completing ? 'Đang lưu...' : 'Hoàn thành B1 — Tiếp theo: Xây dựng chiến lược'}
           <ChevronRight size={18} />
         </button>
       </div>

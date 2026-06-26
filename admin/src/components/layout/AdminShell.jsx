@@ -96,7 +96,9 @@ export function AdminShell() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { admin, logout } = useAdminAuthStore()
-  const { company } = useAdminStore()
+  const { company, init } = useAdminStore()
+
+  useEffect(() => { init() }, [])
 
   function handleLogout() {
     logout()

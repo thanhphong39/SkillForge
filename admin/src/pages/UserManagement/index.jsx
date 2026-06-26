@@ -71,11 +71,11 @@ export default function UserManagementPage() {
     setOpen(true)
   }
 
-  function onSubmit(data) {
+  async function onSubmit(data) {
     if (editing) {
       updateUser(editing.id, data)
     } else {
-      addUser(data)
+      await addUser(data)
     }
     setOpen(false)
   }

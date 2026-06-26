@@ -26,11 +26,11 @@ export default function DepartmentSetupPage() {
     setOpen(true)
   }
 
-  function onSubmit(data) {
+  async function onSubmit(data) {
     if (editing) {
-      updateDept(editing.id, data)
+      await updateDept(editing.id, data)
     } else {
-      addDept(data)
+      await addDept(data)
     }
     setOpen(false)
   }

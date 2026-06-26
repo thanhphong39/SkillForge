@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 import clsx from 'clsx'
 
 export default function LoginPage() {
@@ -26,9 +28,18 @@ export default function LoginPage() {
     setLoading(true)
     await new Promise((r) => setTimeout(r, 700))
     const ok = login(username, password)
-    setLoading(false)
-    if (ok) navigate('/dashboard', { replace: true })
-    else setError('Tên đăng nhập hoặc mật khẩu không đúng.')
+    if (ok) {
+      // Init BSC context (create company + strategy if first time)
+      useBscContextStore.getState().init().then(() => {
+        const { strategyId } = useBscContextStore.getState()
+        if (strategyId) useBSCWorkflowStore.getState().fetchSteps(strategyId)
+      })
+      setLoading(false)
+      navigate('/dashboard', { replace: true })
+    } else {
+      setLoading(false)
+      setError('Tên đăng nhập hoặc mật khẩu không đúng.')
+    }
   }
 
   return (
