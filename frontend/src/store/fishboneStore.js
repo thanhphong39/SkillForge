@@ -177,10 +177,17 @@ export const useFishboneStore = create((set, get) => ({
         },
       }
     })
+    const { strategyId } = useBscContextStore.getState()
+    const participationId = (get().participations[deptId] ?? {})[objectiveId]
     fishboneService
       .updateDepartmentKpi(kpiId, {
+        bscStrategyId: strategyId,
+        finalStrategicObjectiveId: objectiveId,
+        departmentId: deptId,
+        departmentParticipationId: participationId,
         name: updates.name,
         description: updates.description ?? '',
+        displayOrder: updates.displayOrder,
       })
       .catch(console.error)
   },
@@ -256,6 +263,40 @@ export const useFishboneStore = create((set, get) => ({
       })
     })
     return errors
+  },
+
+  // ── Fetch full fishbone state from backend on page load ───────────────────
+  fetchFromBackend: async (strategyId) => {
+    if (!strategyId) return
+    set({ loading: true, error: null })
+    try {
+      const data = await fishboneService.getCompanyFishbone(strategyId)
+      const newParticipations = {}
+      const newDeptKPIs = {}
+
+      for (const obj of (data.objectives ?? [])) {
+        const objectiveId = obj.finalStrategicObjectiveId
+        for (const p of (obj.participations ?? [])) {
+          const deptId = p.departmentId
+          if (!newParticipations[deptId]) newParticipations[deptId] = {}
+          newParticipations[deptId][objectiveId] = p.id
+        }
+        for (const kpi of (obj.departmentKpis ?? [])) {
+          const deptId = kpi.departmentId
+          if (!newDeptKPIs[deptId]) newDeptKPIs[deptId] = {}
+          if (!newDeptKPIs[deptId][objectiveId]) newDeptKPIs[deptId][objectiveId] = []
+          newDeptKPIs[deptId][objectiveId].push({
+            id: kpi.id,
+            name: kpi.name,
+            description: kpi.description ?? '',
+          })
+        }
+      }
+
+      set({ participations: newParticipations, deptKPIs: newDeptKPIs, loading: false })
+    } catch (e) {
+      set({ loading: false, error: e.message })
+    }
   },
 
   // ── Complete B5 ───────────────────────────────────────────────────────────

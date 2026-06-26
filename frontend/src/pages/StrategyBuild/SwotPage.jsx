@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Edit3, Save, X, ChevronRight, CheckSquare, Square } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 
 // ── Meta ─────────────────────────────────────────────────────────────────────
 
@@ -274,6 +275,11 @@ export default function SwotPage() {
   const [activeTab, setActiveTab] = useState('7s')
   const navigate = useNavigate()
   const store = useSWOTStore()
+  const { strategyId } = useBscContextStore()
+
+  useEffect(() => {
+    if (strategyId) store.fetch(strategyId)
+  }, [strategyId])
 
   const counts = {
     '7s':         Object.values(store.sevenS).reduce((s, a) => s + a.length, 0),

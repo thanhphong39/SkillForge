@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { useAdminStore } from '../../store/adminStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 import { Card, CardHeader } from '../../components/ui/Card.jsx'
 import { Input, Select } from '../../components/ui/Input.jsx'
 import { Button } from '../../components/ui/Button.jsx'
@@ -29,6 +30,7 @@ export default function CompanySetupPage() {
   async function onSubmit(data) {
     await updateCompany(data)
     setSaved(true)
+    toast.success('Đã lưu cấu hình công ty thành công!')
     setTimeout(() => setSaved(false), 2500)
   }
 
@@ -143,3 +145,4 @@ export default function CompanySetupPage() {
     </div>
   )
 }
+

@@ -4,7 +4,7 @@ const fishboneService = {
   // Department Participation
   joinFinalObjective: (strategyId, data) =>
     api.post(`/bsc-strategies/${strategyId}/department-participations`, data),
-  // data: { finalObjectiveId, departmentId }
+  // data: { finalStrategicObjectiveId, departmentId, departmentHeadId? }
 
   removeParticipation: (participationId) =>
     api.delete(`/department-participations/${participationId}`),
@@ -16,7 +16,7 @@ const fishboneService = {
 
   updateDepartmentKpi: (departmentKpiId, data) =>
     api.put(`/department-kpis/${departmentKpiId}`, data),
-  // data: { name?, description?, displayOrder? }
+  // data: { bscStrategyId, finalStrategicObjectiveId, departmentId, departmentParticipationId, name, description?, displayOrder? }
 
   deleteDepartmentKpi: (departmentKpiId) =>
     api.delete(`/department-kpis/${departmentKpiId}`),

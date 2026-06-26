@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, CheckSquare, Square, AlertCircle, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 
 const TYPE_META = {
   SO: { label: 'SO — Tấn công',       desc: 'Điểm mạnh × Cơ hội',     badge: 'bg-emerald-600 text-white', bg: 'bg-emerald-50',  border: 'border-emerald-200' },
@@ -147,6 +149,12 @@ export default function SelectionPage() {
   const store = useSWOTStore()
   const { strategies, b3Selected, b3Notes, toggleB3Strategy, setB3Note, completeB3 } = store
   const navigate = useNavigate()
+  const { strategyId } = useBscContextStore()
+
+  useEffect(() => {
+    if (strategyId) store.fetch(strategyId)
+  }, [strategyId])
+
   const [errors, setErrors] = useState([])
   const [completing, setCompleting] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
@@ -161,8 +169,14 @@ export default function SelectionPage() {
     setCompleting(true)
     const errs = await completeB3()
     setCompleting(false)
-    if (errs.length > 0) { setErrors(errs); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    if (errs.length > 0) {
+      setErrors(errs)
+      toast.error(errs[0])
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     setErrors([])
+    toast.success('Hoàn thành B3! Chuyển sang B4.')
     navigate('/strategy-map/perspectives')
   }
 
@@ -330,3 +344,4 @@ export default function SelectionPage() {
     </div>
   )
 }
+

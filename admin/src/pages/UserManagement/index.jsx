@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus, Search, Users } from 'lucide-react'
 import { useAdminStore } from '../../store/adminStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 import { Card } from '../../components/ui/Card.jsx'
 import { Modal } from '../../components/ui/Modal.jsx'
 import { Input, Select } from '../../components/ui/Input.jsx'
@@ -51,13 +52,15 @@ function Avatar({ user, size = 'md' }) {
 }
 
 export default function UserManagementPage() {
-  const { users, departments, addUser, updateUser, deleteUser } = useAdminStore()
+  const { users, departments, addUser, updateUser, deleteUser, init } = useAdminStore()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [filterDept, setFilterDept] = useState('all')
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
+
+  useEffect(() => { init() }, [])
 
   function openAdd() {
     setEditing(null)
@@ -74,8 +77,10 @@ export default function UserManagementPage() {
   async function onSubmit(data) {
     if (editing) {
       updateUser(editing.id, data)
+      toast.success(`Đã cập nhật tài khoản "${data.name}"`)
     } else {
       await addUser(data)
+      toast.success(`Đã thêm người dùng "${data.name}"`)
     }
     setOpen(false)
   }
@@ -203,7 +208,7 @@ export default function UserManagementPage() {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => confirm(`Xóa tài khoản "${u.name}"?`) && deleteUser(u.id)}
+                        onClick={() => { if (confirm(`Xóa tài khoản "${u.name}"?`)) { deleteUser(u.id); toast.success(`Đã xóa "${u.name}"`) } }}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer"
                       >
                         <Trash2 size={14} />
@@ -279,3 +284,4 @@ export default function UserManagementPage() {
     </div>
   )
 }
+

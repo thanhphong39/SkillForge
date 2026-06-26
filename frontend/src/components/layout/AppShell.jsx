@@ -1,6 +1,10 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar.jsx'
 import { Header } from './Header.jsx'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
+import { Toaster } from '../ui/toast.jsx'
 
 const PAGE_TITLES = {
   '/dashboard':                   'Tổng quan SkillForge',
@@ -27,8 +31,17 @@ function getTitle(pathname) {
 
 export function AppShell() {
   const { pathname } = useLocation()
+
+  useEffect(() => {
+    useBscContextStore.getState().init().then(() => {
+      const { strategyId } = useBscContextStore.getState()
+      if (strategyId) useBSCWorkflowStore.getState().fetchSteps(strategyId)
+    })
+  }, [])
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#F1F5F9]">
+      <Toaster />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header title={getTitle(pathname)} />
@@ -39,3 +52,4 @@ export function AppShell() {
     </div>
   )
 }
+

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Plus, Pencil, Trash2, CheckCircle2, Clock, Calendar } from 'lucide-react'
 import { useAdminStore } from '../../store/adminStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 import { Card } from '../../components/ui/Card.jsx'
 import { Modal } from '../../components/ui/Modal.jsx'
 import { Input, Select } from '../../components/ui/Input.jsx'
@@ -46,8 +47,10 @@ export default function PeriodManagementPage() {
     }
     if (editing) {
       updatePeriod(editing.id, payload)
+      toast.success(`Đã cập nhật kỳ ${payload.label}`)
     } else {
       addPeriod(payload)
+      toast.success(`Đã thêm kỳ ${payload.label}`)
     }
     setOpen(false)
   }
@@ -128,7 +131,7 @@ export default function PeriodManagementPage() {
                   <div className="flex gap-1 justify-end">
                     {!period.isActive && (
                       <button
-                        onClick={() => setActivePeriod(period.id)}
+                        onClick={() => { setActivePeriod(period.id); toast.success(`Đã chuyển sang kỳ ${period.label}`) }}
                         className="px-2 py-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded cursor-pointer transition-colors font-medium"
                       >
                         Chọn active
@@ -142,8 +145,8 @@ export default function PeriodManagementPage() {
                     </button>
                     <button
                       onClick={() => {
-                        if (period.isActive) return alert('Không thể xóa kỳ đang active.')
-                        if (confirm(`Xóa kỳ "${period.label}"?`)) deletePeriod(period.id)
+                        if (period.isActive) return toast.warning('Không thể xóa kỳ đang active.')
+                        if (confirm(`Xóa kỳ "${period.label}"?`)) { deletePeriod(period.id); toast.success(`Đã xóa kỳ "${period.label}"`) }
                       }}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer"
                     >
@@ -207,3 +210,4 @@ export default function PeriodManagementPage() {
     </div>
   )
 }
+

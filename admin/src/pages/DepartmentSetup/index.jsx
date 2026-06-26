@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus, Users, UserCircle2 } from 'lucide-react'
 import { useAdminStore } from '../../store/adminStore.js'
@@ -7,12 +7,15 @@ import { Modal } from '../../components/ui/Modal.jsx'
 import { Input, Select } from '../../components/ui/Input.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { Badge } from '../../components/ui/Badge.jsx'
+import { toast } from '../../components/ui/toast.jsx'
 
 export default function DepartmentSetupPage() {
-  const { departments, users, addDept, updateDept, deleteDept } = useAdminStore()
+  const { departments, users, addDept, updateDept, deleteDept, init } = useAdminStore()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
+
+  useEffect(() => { init() }, [])
 
   function openAdd() {
     setEditing(null)
@@ -29,8 +32,10 @@ export default function DepartmentSetupPage() {
   async function onSubmit(data) {
     if (editing) {
       await updateDept(editing.id, data)
+      toast.success(`Đã cập nhật phòng ban "${data.name}"`)
     } else {
       await addDept(data)
+      toast.success(`Đã thêm phòng ban "${data.name}"`)
     }
     setOpen(false)
   }
@@ -86,8 +91,8 @@ export default function DepartmentSetupPage() {
                     </button>
                     <button
                       onClick={() => {
-                        if (memberCount > 0) return alert(`Phòng ban còn ${memberCount} người dùng. Hãy chuyển họ sang phòng khác trước.`)
-                        if (confirm(`Xóa phòng ban "${dept.name}"?`)) deleteDept(dept.id)
+                        if (memberCount > 0) return toast.error(`Phòng ban còn ${memberCount} người dùng. Hãy chuyển họ sang phòng khác trước.`)
+                        if (confirm(`Xóa phòng ban "${dept.name}"?`)) { deleteDept(dept.id); toast.success(`Đã xóa phòng ban "${dept.name}"`) }
                       }}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                     >
@@ -163,8 +168,8 @@ export default function DepartmentSetupPage() {
                         <button onClick={() => openEdit(dept)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded cursor-pointer"><Pencil size={14} /></button>
                         <button
                           onClick={() => {
-                            if (memberCount > 0) return alert(`Phòng ban còn ${memberCount} người dùng.`)
-                            if (confirm(`Xóa "${dept.name}"?`)) deleteDept(dept.id)
+                            if (memberCount > 0) return toast.error(`Phòng ban còn ${memberCount} người dùng.`)
+                            if (confirm(`Xóa "${dept.name}"?`)) { deleteDept(dept.id); toast.success(`Đã xóa "${dept.name}"`) }
                           }}
                           className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer"
                         >
@@ -225,3 +230,4 @@ export default function DepartmentSetupPage() {
     </div>
   )
 }
+

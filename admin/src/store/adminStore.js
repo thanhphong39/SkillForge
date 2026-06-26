@@ -48,7 +48,7 @@ export const useAdminStore = create(
 
       // Fetch company, departments and employees from backend
       init: async () => {
-        const companyId = readCompanyId()
+        const companyId = readCompanyId() || get().companyId
         if (!companyId) return
         set({ companyId, loading: true, error: null })
         try {
@@ -148,8 +148,12 @@ export const useAdminStore = create(
         }
       },
 
-      deleteDept: (id) =>
-        set((s) => ({ departments: s.departments.filter((d) => d.id !== id) })),
+      deleteDept: (id) => {
+        set((s) => ({ departments: s.departments.filter((d) => d.id !== id) }))
+        if (!id.startsWith('local-')) {
+          departmentService.remove(id).catch(console.error)
+        }
+      },
 
       // Users (employees)
       addUser: async (user) => {
@@ -184,11 +188,26 @@ export const useAdminStore = create(
         }
       },
 
-      updateUser: (id, changes) =>
-        set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, ...changes } : u)) })),
+      updateUser: async (id, changes) => {
+        set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, ...changes } : u)) }))
+        if (!id.startsWith('local-')) {
+          const user = { ...get().users.find((u) => u.id === id), ...changes }
+          employeeService.update(id, {
+            departmentId: user.deptId,
+            fullName: user.name,
+            email: user.email,
+            phone: user.phone || '',
+            positionTitle: user.title || '',
+          }).catch(console.error)
+        }
+      },
 
-      deleteUser: (id) =>
-        set((s) => ({ users: s.users.filter((u) => u.id !== id) })),
+      deleteUser: (id) => {
+        set((s) => ({ users: s.users.filter((u) => u.id !== id) }))
+        if (!id.startsWith('local-')) {
+          employeeService.remove(id).catch(console.error)
+        }
+      },
 
       // Periods (local only — no backend endpoint)
       addPeriod: (period) =>
@@ -205,8 +224,9 @@ export const useAdminStore = create(
     }),
     {
       name: 'skillforge-admin-store',
-      // Only persist local-only fields; departments/users come from backend on init
+      // Persist companyId so admin can reload without depending on bsc-context
       partialize: (s) => ({
+        companyId: s.companyId,
         company: s.company,
         periods: s.periods,
         ratingThresholds: s.ratingThresholds,

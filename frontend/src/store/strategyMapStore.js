@@ -319,6 +319,62 @@ export const useStrategyMapStore = create((set, get) => ({
     return errors
   },
 
+  // ── Fetch from backend on page load ─────────────────────────────────────
+  fetchFromBackend: async (strategyId) => {
+    if (!strategyId) return
+    set({ loading: true, error: null })
+    try {
+      const data = await strategyMapService.getFinalStrategyMap(strategyId)
+      const newMapIds = {}
+      const newObjs = {}
+      const newLinks = {}
+
+      for (const indMap of (data.individualStrategyMaps ?? [])) {
+        const sid = indMap.selectedStrategyId
+        newMapIds[sid] = indMap.id
+        newObjs[sid] = (indMap.objectives ?? []).map((o) => ({
+          id: o.id,
+          name: o.name,
+          description: o.description ?? '',
+          perspective: o.perspectiveCode,
+          order: o.displayOrder ?? 0,
+        }))
+        newLinks[sid] = (indMap.objectiveLinks ?? []).map((l) => ({
+          id: l.id,
+          sourceId: l.sourceObjectiveId,
+          targetId: l.targetObjectiveId,
+        }))
+      }
+
+      const finalObjectives = (data.finalObjectives ?? []).map((fo) => ({
+        id: fo.id,
+        name: fo.name,
+        description: fo.description ?? '',
+        perspective: fo.perspectiveCode,
+        type: fo.sourceType,
+        sourceIds: (fo.sources ?? []).map((s) => s.sourceObjectiveId),
+        order: fo.displayOrder ?? 0,
+      }))
+
+      const finalCausalLinks = (data.finalObjectiveLinks ?? []).map((l) => ({
+        id: l.id,
+        sourceId: l.sourceFinalObjectiveId,
+        targetId: l.targetFinalObjectiveId,
+      }))
+
+      set({
+        strategyMapIds: newMapIds,
+        strategyObjectives: newObjs,
+        strategyCausalLinks: newLinks,
+        finalObjectives,
+        finalCausalLinks,
+        loading: false,
+      })
+    } catch (e) {
+      set({ loading: false, error: e.message })
+    }
+  },
+
   // ── Complete B4 ───────────────────────────────────────────────────────────
   complete: async (b3Selected) => {
     const strategyId = useBscContextStore.getState().strategyId

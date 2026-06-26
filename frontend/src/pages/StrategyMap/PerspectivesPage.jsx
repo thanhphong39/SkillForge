@@ -4,6 +4,8 @@ import { Plus, X, Edit3, Trash2, ChevronRight, ArrowRight, AlertCircle, Check, G
 import clsx from 'clsx'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useStrategyMapStore } from '../../store/strategyMapStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 
 const PERSPECTIVES = [
   { key: 'FINANCIAL',           label: 'Tài chính',             color: '#16a34a', bg: 'bg-emerald-50', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
@@ -369,11 +371,13 @@ function MergeStep({ strategyIds, strategies, strategyObjectives, mapStore }) {
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function PerspectivesPage() {
-  const { strategies, b3Selected } = useSWOTStore()
+  const swotStore = useSWOTStore()
+  const { strategies, b3Selected } = swotStore
   const mapStore = useStrategyMapStore()
   const navigate = useNavigate()
+  const { strategyId } = useBscContextStore()
 
-  const { strategyObjectives, strategyCausalLinks, initForStrategies, addObjective, updateObjective, removeObjective, addCausalLink, removeCausalLink } = mapStore
+  const { strategyObjectives, strategyCausalLinks, addObjective, updateObjective, removeObjective, addCausalLink, removeCausalLink } = mapStore
 
   const [modal, setModal] = useState({ open: false, strategyId: null, perspective: null, editing: null })
   const [activeStrategyTab, setActiveStrategyTab] = useState(b3Selected[0] ?? null)
@@ -384,10 +388,20 @@ export default function PerspectivesPage() {
   const [linkTarget, setLinkTarget] = useState('')
 
   useEffect(() => {
-    if (b3Selected.length > 0) {
-      initForStrategies(b3Selected)
-      setActiveStrategyTab(b3Selected[0])
-    }
+    if (!strategyId) return
+    swotStore.fetch(strategyId).then(() => {
+      mapStore.fetchFromBackend(strategyId)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategyId])
+
+  useEffect(() => {
+    if (b3Selected.length === 0) return
+    setActiveStrategyTab((prev) => prev ?? b3Selected[0])
+    // Create strategy maps for any selected strategy that doesn't have one yet
+    // (covers the case where B4 is opened for the first time — fetchFromBackend found nothing)
+    const missing = b3Selected.filter((sid) => !mapStore.strategyMapIds[sid])
+    if (missing.length > 0) mapStore.initForStrategies(missing)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b3Selected.join(',')])
 
@@ -427,8 +441,13 @@ export default function PerspectivesPage() {
     setCompleting(true)
     const errs = await mapStore.complete(b3Selected)
     setCompleting(false)
-    if (errs.length > 0) { setErrors(errs); return }
+    if (errs.length > 0) {
+      setErrors(errs)
+      toast.error(errs[0])
+      return
+    }
     setErrors([])
+    toast.success('Hoàn thành B4! Chuyển sang B5.')
     navigate('/fishbone')
   }
 
@@ -610,3 +629,4 @@ export default function PerspectivesPage() {
     </div>
   )
 }
+

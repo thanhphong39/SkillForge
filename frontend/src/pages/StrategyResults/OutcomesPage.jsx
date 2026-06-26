@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ArrowLeft } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 
 const TYPE_META = {
   SO: { label: 'SO — Tấn công',       badge: 'bg-emerald-600 text-white', bg: 'bg-emerald-50', border: 'border-emerald-200' },
@@ -30,6 +32,11 @@ export default function OutcomesPage() {
   const store = useSWOTStore()
   const { strategies, b3Selected, b3Notes } = store
   const navigate = useNavigate()
+  const { strategyId } = useBscContextStore()
+
+  useEffect(() => {
+    if (strategyId) store.fetch(strategyId)
+  }, [strategyId])
 
   const allItems = [...store.getAllSevenSItems(), ...store.getAllExternalItems()]
   const getItem = (id) => allItems.find((i) => i.id === id)

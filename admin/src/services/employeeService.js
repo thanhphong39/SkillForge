@@ -7,6 +7,9 @@ const employeeService = {
     const params = departmentId ? { departmentId } : {};
     return api.get(`/companies/${companyId}/employees`, { params });
   },
+  // UpdateEmployeeRequest: { departmentId, fullName, email, phone, positionTitle }
+  update: (employeeId, data) => api.put(`/employees/${employeeId}`, data),
+  remove: (employeeId) => api.delete(`/employees/${employeeId}`),
 };
 
 export default employeeService;

@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Edit3, ChevronRight, X, AlertCircle, CheckSquare, Square } from 'lucide-react'
 import { useSWOTStore } from '../../store/swotStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 
 const TYPE_META = {
   SO: { label: 'SO — Tấn công',       desc: 'Điểm mạnh × Cơ hội',     badge: 'bg-emerald-600 text-white', bg: 'bg-emerald-50',  border: 'border-emerald-200' },
@@ -83,7 +85,7 @@ function StrategyModal({ open, onClose, onSave, editStrategy }) {
 
   const handleSave = () => {
     const err = validate()
-    if (err) { alert(err); return }
+    if (err) { toast.error(err); return }
     onSave({ type, name: name.trim(), description: description.trim(), sItems, wItems, oItem, tItem })
     onClose()
   }
@@ -277,6 +279,12 @@ export default function FormulationPage() {
   const store = useSWOTStore()
   const { strategies, addStrategy, updateStrategy, deleteStrategy, completeB2 } = store
   const navigate = useNavigate()
+  const { strategyId } = useBscContextStore()
+
+  useEffect(() => {
+    if (strategyId) store.fetch(strategyId)
+  }, [strategyId])
+
   const [activeTab, setActiveTab] = useState('SO')
   const [modal, setModal] = useState({ open: false, editStrategy: null })
   const [errors, setErrors] = useState([])
@@ -300,8 +308,14 @@ export default function FormulationPage() {
     setCompleting(true)
     const errs = await completeB2()
     setCompleting(false)
-    if (errs.length > 0) { setErrors(errs); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    if (errs.length > 0) {
+      setErrors(errs)
+      toast.error(errs[0])
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     setErrors([])
+    toast.success('Hoàn thành B2! Chuyển sang B3.')
     navigate('/strategy-results/selection')
   }
 
@@ -419,3 +433,4 @@ export default function FormulationPage() {
     </div>
   )
 }
+

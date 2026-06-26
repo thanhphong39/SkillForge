@@ -23,58 +23,6 @@ const MODEL_KEY_TO_TYPE = {
   pestel:     'PESTEL',
 }
 
-// ── Map backend StrategyBuildingResponse → local state ───────────────────────
-
-const mapBuilding = (response) => {
-  if (!response) return {}
-
-  const analysisItemsRaw = response.analysisItems || []
-  const swotItemsRaw = response.swotItems || []
-  const rawCandidates = response.candidateStrategies || []
-
-  // Group analysis items into nested objects
-  const sevenS = {}; const fiveForces = {}; const pestel = {}
-  analysisItemsRaw.forEach((item) => {
-    const key = MODEL_TYPE_TO_KEY[item.modelType]
-    if (!key) return
-    const target = { sevenS, fiveForces, pestel }[key]
-    if (!target[item.factorCode]) target[item.factorCode] = []
-    target[item.factorCode].push({ id: item.id, value: item.content })
-  })
-
-  // SWOT selections as arrays of sourceAnalysisItemId
-  const swotS = swotItemsRaw.filter((i) => i.swotType === 'S').map((i) => i.sourceAnalysisItemId)
-  const swotW = swotItemsRaw.filter((i) => i.swotType === 'W').map((i) => i.sourceAnalysisItemId)
-  const swotO = swotItemsRaw.filter((i) => i.swotType === 'O').map((i) => i.sourceAnalysisItemId)
-  const swotT = swotItemsRaw.filter((i) => i.swotType === 'T').map((i) => i.sourceAnalysisItemId)
-
-  // Candidate strategies in frontend-friendly format
-  const strategies = rawCandidates
-    .filter((cs) => cs.status !== 'DELETED')
-    .map((cs) => {
-      const swotItems = cs.swotItems || []
-      return {
-        id: cs.id,
-        type: cs.strategyGroup,
-        name: cs.name,
-        description: cs.description || '',
-        sItems: swotItems.filter((si) => si.swotType === 'S').map((si) => si.sourceAnalysisItemId),
-        wItems: swotItems.filter((si) => si.swotType === 'W').map((si) => si.sourceAnalysisItemId),
-        oItem: swotItems.find((si) => si.swotType === 'O')?.sourceAnalysisItemId ?? null,
-        tItem: swotItems.find((si) => si.swotType === 'T')?.sourceAnalysisItemId ?? null,
-      }
-    })
-
-  return { analysisItemsRaw, swotItemsRaw, sevenS, fiveForces, pestel, swotS, swotW, swotO, swotT, strategies }
-}
-
-// Map B3 selection response → local b3Selected
-const mapSelection = (response) => {
-  if (!response) return {}
-  const selected = (response.selectedStrategies || []).map((s) => s.candidateStrategyId || s.id)
-  return { b3Selected: selected }
-}
-
 // ── Build analysisItemsRaw from nested state ──────────────────────────────────
 
 const buildAnalysisItems = (sevenS, fiveForces, pestel) => {
@@ -127,19 +75,33 @@ export const useSWOTStore = create((set, get) => ({
     if (!strategyId) return
     set({ loading: true, error: null })
     try {
-      const candidates = await strategyBuildingService.listCandidateStrategies(strategyId)
-      const rawCandidates = candidates || []
+      // Load full B2 state (analysis items + swot items + candidates)
+      const building = await strategyBuildingService.getBuilding(strategyId)
+      const analysisItemsRaw = building?.analysisItems || []
+      const swotItemsRaw = (building?.swotItems || []).map((si) => ({
+        id: si.id,
+        swotType: String(si.swotType),
+        sourceAnalysisItemId: si.sourceAnalysisItemId,
+      }))
 
-      // Reconstruct swotItemsRaw from candidate swotItems (needed for resolveSwotIds)
-      // CandidateStrategySwotItemResponse: { swotItemId, swotType, sourceAnalysisItemId, ... }
-      const swotItemsRaw = rawCandidates.flatMap((cs) =>
-        (cs.swotItems || []).map((si) => ({
-          id: si.swotItemId,
-          swotType: String(si.swotType),
-          sourceAnalysisItemId: si.sourceAnalysisItemId,
-        }))
-      )
+      // Reconstruct nested analysis items by model type
+      const sevenS = {}; const fiveForces = {}; const pestel = {}
+      analysisItemsRaw.forEach((item) => {
+        const key = MODEL_TYPE_TO_KEY[item.modelType]
+        if (!key) return
+        const target = { sevenS, fiveForces, pestel }[key]
+        if (!target[item.factorCode]) target[item.factorCode] = []
+        target[item.factorCode].push({ id: item.id, value: item.content })
+      })
 
+      // SWOT selections
+      const swotS = swotItemsRaw.filter((i) => i.swotType === 'S').map((i) => i.sourceAnalysisItemId)
+      const swotW = swotItemsRaw.filter((i) => i.swotType === 'W').map((i) => i.sourceAnalysisItemId)
+      const swotO = swotItemsRaw.filter((i) => i.swotType === 'O').map((i) => i.sourceAnalysisItemId)
+      const swotT = swotItemsRaw.filter((i) => i.swotType === 'T').map((i) => i.sourceAnalysisItemId)
+
+      // Candidate strategies
+      const rawCandidates = building?.candidateStrategies || []
       const strategies = rawCandidates
         .filter((cs) => cs.status !== 'DELETED')
         .map((cs) => ({
@@ -153,11 +115,10 @@ export const useSWOTStore = create((set, get) => ({
           tItem: (cs.swotItems || []).find((si) => String(si.swotType) === 'T')?.sourceAnalysisItemId ?? null,
         }))
 
-      // Try to load B3 selection
+      // Load B3 selection
       let b3Selected = []
       try {
         const selectionResp = await strategySelectionService.get(strategyId)
-        // SelectedStrategyResponse has candidateStrategyId field
         b3Selected = ((selectionResp?.selectedStrategies) || [])
           .sort((a, b) => (a.priorityOrder ?? 0) - (b.priorityOrder ?? 0))
           .map((s) => s.candidateStrategyId)
@@ -166,7 +127,7 @@ export const useSWOTStore = create((set, get) => ({
         // B3 not started yet, ignore
       }
 
-      set({ strategies, swotItemsRaw, b3Selected, loading: false })
+      set({ analysisItemsRaw, swotItemsRaw, sevenS, fiveForces, pestel, swotS, swotW, swotO, swotT, strategies, b3Selected, loading: false })
     } catch {
       set({ loading: false })
     }

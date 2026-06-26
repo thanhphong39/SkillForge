@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, Plus, Trash2, Edit3, Save, X, AlertCircle,
@@ -9,6 +9,8 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { useAssessmentStore } from '../../store/assessmentStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 
 const PIE_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#a855f7']
 
@@ -491,10 +493,15 @@ function SimpleListSection({ icon, iconColor, title, subtitle, field, placeholde
 // Main page
 // ────────────────────────────────────────────────────────────
 export default function AssessmentPage() {
-  const { complete } = useAssessmentStore()
+  const { complete, fetch, loading } = useAssessmentStore()
+  const { strategyId } = useBscContextStore()
   const navigate = useNavigate()
   const [errors, setErrors] = useState([])
   const [completing, setCompleting] = useState(false)
+
+  useEffect(() => {
+    if (strategyId) fetch(strategyId)
+  }, [strategyId])
 
   const handleComplete = async () => {
     setCompleting(true)
@@ -502,11 +509,21 @@ export default function AssessmentPage() {
     setCompleting(false)
     if (errs.length > 0) {
       setErrors(errs)
+      toast.error(errs[0])
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
     setErrors([])
+    toast.success('Hoàn thành B1! Chuyển sang B2.')
     navigate('/strategy-build/swot')
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto flex items-center justify-center py-20">
+        <p className="text-slate-400 text-sm">Đang tải dữ liệu...</p>
+      </div>
+    )
   }
 
   return (
@@ -608,3 +625,4 @@ export default function AssessmentPage() {
     </div>
   )
 }
+

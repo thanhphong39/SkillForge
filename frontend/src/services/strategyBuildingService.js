@@ -1,6 +1,10 @@
 import api from './api';
 
 const strategyBuildingService = {
+  // Get full B2 state (analysis items + swot items + candidates)
+  getBuilding: (strategyId) =>
+    api.get(`/bsc-strategies/${strategyId}/strategy-building`),
+
   // Analysis items (SO/WO/ST/WT)
   upsertAnalysisItems: (strategyId, items) =>
     api.put(`/bsc-strategies/${strategyId}/analysis-items`, { items }),

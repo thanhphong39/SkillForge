@@ -5,6 +5,8 @@ import clsx from 'clsx'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useStrategyMapStore } from '../../store/strategyMapStore.js'
 import { useFishboneStore } from '../../store/fishboneStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
+import { toast } from '../../components/ui/toast.jsx'
 
 const PERSPECTIVES = [
   { key: 'FINANCIAL',           label: 'Tài chính',             color: '#16a34a', badge: 'bg-emerald-100 text-emerald-700' },
@@ -213,10 +215,12 @@ function CEOView({ objectives, store }) {
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function FishbonePage() {
-  const { b3Selected } = useSWOTStore()
+  const swotStore = useSWOTStore()
+  const { b3Selected } = swotStore
   const mapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
   const navigate = useNavigate()
+  const { strategyId } = useBscContextStore()
   const [errors, setErrors] = useState([])
   const [completing, setCompleting] = useState(false)
 
@@ -230,20 +234,33 @@ export default function FishbonePage() {
   )
 
   useEffect(() => {
-    if (departments.length === 0) loadDepartments()
+    if (!strategyId) return
+    loadDepartments()
+    swotStore.fetch(strategyId).then(() => {
+      mapStore.fetchFromBackend(strategyId).then(() => {
+        fishboneStore.fetchFromBackend(strategyId)
+      })
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [strategyId])
 
   const handleComplete = async () => {
     if (objectives.length === 0) {
-      setErrors(['Chưa có mục tiêu chiến lược từ B4. Vui lòng hoàn thành B4 trước.'])
+      const msg = 'Chưa có mục tiêu chiến lược từ B4. Vui lòng hoàn thành B4 trước.'
+      setErrors([msg])
+      toast.error(msg)
       return
     }
     setCompleting(true)
     const errs = await fishboneStore.complete(objectives)
     setCompleting(false)
-    if (errs.length > 0) { setErrors(errs); return }
+    if (errs.length > 0) {
+      setErrors(errs)
+      toast.error(errs[0])
+      return
+    }
     setErrors([])
+    toast.success('Hoàn thành B5! BSC đã hoàn thiện.')
     navigate('/weight-allocation')
   }
 
@@ -354,3 +371,4 @@ export default function FishbonePage() {
     </div>
   )
 }
+

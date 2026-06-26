@@ -20,7 +20,7 @@ const strategyMapService = {
   // Objective Links (draft)
   createObjectiveLink: (strategyMapId, data) =>
     api.post(`/strategy-maps/${strategyMapId}/objective-links`, data),
-  // data: { fromObjectiveId, toObjectiveId }
+  // data: { sourceObjectiveId, targetObjectiveId, note?, displayOrder? }
 
   deleteObjectiveLink: (objectiveLinkId) =>
     api.delete(`/objective-links/${objectiveLinkId}`),

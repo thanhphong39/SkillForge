@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Toaster } from '../ui/toast.jsx'
 import {
   Building2, Users, LayoutGrid, Settings, Calendar,
   ChevronLeft, ChevronRight, LayoutDashboard,
@@ -119,6 +120,7 @@ export function AdminShell() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
+      <Toaster />
       {/* Sidebar */}
       <aside className={clsx(
         'flex flex-col bg-slate-900 text-white transition-all duration-300 shrink-0',
@@ -205,3 +207,4 @@ export function AdminShell() {
     </div>
   )
 }
+
