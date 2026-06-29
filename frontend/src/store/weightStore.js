@@ -12,6 +12,10 @@ export const useWeightStore = create((set, get) => ({
   objectiveWeights: {}, // { [objId]: absoluteWeight }
   kpiWeights: {},       // { [kpiId]: absoluteWeight }
 
+  loading: false,
+  saving: false,
+  error: null,
+
   setPerspectiveWeight: (perspId, value) => set((state) => ({
     perspectiveWeights: {
       ...state.perspectiveWeights,
@@ -86,4 +90,86 @@ export const useWeightStore = create((set, get) => ({
     objectiveWeights: {},
     kpiWeights: {},
   }),
+
+  // ── API Integration ───────────────────────────────────────────
+
+  // Load weight tree from backend → populate local state
+  fetchWeightTree: async (strategyId) => {
+    if (!strategyId) return
+    const { default: weightService } = await import('../services/weightService.js')
+    set({ loading: true, error: null })
+    try {
+      const tree = await weightService.getWeightTree(strategyId)
+      // Response: { perspectives: [{ perspectiveCode, weightPercent, objectives: [{ finalStrategicObjectiveId, weightPercent, kpis: [{ departmentKpiId, weightPercent }] }] }] }
+      const perspWts = {}
+      const objWts = {}
+      const kpiWts = {}
+      ;(tree?.perspectives || []).forEach((p) => {
+        perspWts[p.perspectiveCode] = Number(p.weightPercent) || 0
+        ;(p.objectives || []).forEach((o) => {
+          objWts[o.finalStrategicObjectiveId] = Number(o.weightPercent) || 0
+          ;(o.kpis || []).forEach((k) => {
+            kpiWts[k.departmentKpiId] = Number(k.weightPercent) || 0
+          })
+        })
+      })
+      set({
+        perspectiveWeights: Object.keys(perspWts).length > 0 ? perspWts : { ...DEFAULT_PERSPECTIVE_WEIGHTS },
+        objectiveWeights: objWts,
+        kpiWeights: kpiWts,
+        loading: false,
+      })
+    } catch {
+      // Weight tree may not exist yet — keep defaults
+      set({ loading: false })
+    }
+  },
+
+  // Push all 3 weight tiers to backend
+  saveAll: async (strategyId, { objectives, allKpis }) => {
+    if (!strategyId) return
+    const { default: weightService } = await import('../services/weightService.js')
+    const { perspectiveWeights, objectiveWeights, kpiWeights } = get()
+    set({ saving: true, error: null })
+    try {
+      const perspItems = Object.entries(perspectiveWeights).map(([perspectiveCode, weightPercent]) => ({
+        perspectiveCode,
+        weightPercent,
+      }))
+      const objItems = (objectives || []).map((o) => ({
+        finalStrategicObjectiveId: o.id,
+        perspectiveCode: o.perspective,
+        weightPercent: objectiveWeights[o.id] ?? 0,
+      }))
+      const kpiItems = (allKpis || []).map((k) => ({
+        departmentKpiId: k.id,
+        finalStrategicObjectiveId: k.objectiveId,
+        departmentId: k.deptId,
+        perspectiveCode: k.perspective,
+        weightPercent: kpiWeights[k.id] ?? 0,
+      }))
+
+      await Promise.all([
+        weightService.upsertPerspectiveWeights(strategyId, perspItems),
+        ...(objItems.length > 0 ? [weightService.upsertObjectiveWeights(strategyId, objItems)] : []),
+        ...(kpiItems.length > 0 ? [weightService.upsertKpiWeights(strategyId, kpiItems)] : []),
+      ])
+      set({ saving: false })
+    } catch (e) {
+      set({ saving: false, error: e.message })
+      throw e
+    }
+  },
+
+  // Save + complete B6
+  complete: async (strategyId, { objectives, allKpis }) => {
+    const { default: weightService } = await import('../services/weightService.js')
+    const { useBscContextStore } = await import('./bscContextStore.js')
+    const { useBSCWorkflowStore } = await import('./bscWorkflowStore.js')
+    const sid = strategyId || useBscContextStore.getState().strategyId
+    if (!sid) throw new Error('Chưa có chiến lược')
+    await get().saveAll(sid, { objectives, allKpis })
+    await weightService.complete(sid)
+    useBSCWorkflowStore.getState().markStepComplete('B6')
+  },
 }))

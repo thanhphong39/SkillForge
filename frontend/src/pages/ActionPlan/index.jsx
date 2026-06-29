@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Plus, Trash2, X, Calendar, User, Save, ChevronDown, ChevronRight,
   Flag, Pencil,
@@ -8,10 +8,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import {
   useActionPlanStore, STATUS_META, TASK_STATUSES, PRIORITY_META, PRIORITIES,
 } from '../../store/actionPlanStore.js'
-import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useStrategyMapStore } from '../../store/strategyMapStore.js'
 import { useFishboneStore } from '../../store/fishboneStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 
 const PERSPECTIVES = {
   FINANCIAL:           { label: 'Tài chính',            color: '#16a34a' },
@@ -335,7 +335,6 @@ function TaskRow({ task, onEdit, onDelete, onStatusChange }) {
 function ActionPlanRow({ ap, tasks, onAddTask, onEditAP, onDeleteAP, onEditTask, onDeleteTask, onStatusChange }) {
   const [open, setOpen] = useState(true)
   const doneTasks = tasks.filter((t) => t.status === 'DONE').length
-  const m = STATUS_META[ap.status] ?? STATUS_META.TODO
   return (
     <div className="ml-4 border-l-2 border-slate-200 mb-2">
       <div className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setOpen((v) => !v)}>
@@ -639,9 +638,9 @@ export default function ActionPlanPage() {
     actionPlans, tasks, kpiReports,
     addActionPlan, updateActionPlan, deleteActionPlan,
     addTask, updateTask, deleteTask, setTaskStatus,
-    addKpiReport, deleteKpiReport,
+    addKpiReport, deleteKpiReport, completeB8, fetchActionPlans, fetchTasks,
   } = useActionPlanStore()
-  const { markStepComplete } = useBSCWorkflowStore()
+  const { strategyId } = useBscContextStore()
   const { b3Selected } = useSWOTStore()
   const mapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
@@ -649,6 +648,15 @@ export default function ActionPlanPage() {
   const objectives = mapStore.getEffectiveFinalObjectives(b3Selected)
   const allKPIs = fishboneStore.getAllKPIs(objectives)
   const departments = fishboneStore.departments
+
+  // Load action plans and tasks from backend on mount
+  useEffect(() => {
+    if (strategyId) {
+      fetchActionPlans(strategyId)
+      fetchTasks(strategyId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategyId])
 
   const [tab, setTab] = useState('list')
   const [dragId, setDragId] = useState(null)
@@ -699,7 +707,13 @@ export default function ActionPlanPage() {
           <p className="text-sm text-slate-500 mt-1">Trưởng phòng tạo kế hoạch hành động → Thêm task → Phân công nhân viên thực hiện</p>
         </div>
         <button
-          onClick={() => markStepComplete('B8')}
+          onClick={async () => {
+            try {
+              await completeB8(strategyId)
+            } catch (e) {
+              alert(e.message)
+            }
+          }}
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
         >
           <Save size={15} /> Hoàn thành B8
@@ -799,9 +813,11 @@ export default function ActionPlanPage() {
       <ActionPlanModal
         open={apModal.open}
         onClose={() => setApModal({ open: false, kpi: null, edit: null })}
-        onSave={(data) => {
-          if (apModal.edit) updateActionPlan(apModal.edit.id, data)
-          else addActionPlan(data)
+        onSave={async (data) => {
+          try {
+            if (apModal.edit) await updateActionPlan(apModal.edit.id, data)
+            else await addActionPlan(strategyId, data)
+          } catch (e) { alert(e.message) }
         }}
         kpiId={apModal.kpi?.id}
         kpiName={apModal.kpi?.name}
@@ -812,9 +828,11 @@ export default function ActionPlanPage() {
       <TaskModal
         open={taskModal.open}
         onClose={() => setTaskModal({ open: false, ap: null, edit: null })}
-        onSave={(data) => {
-          if (taskModal.edit) updateTask(taskModal.edit.id, data)
-          else addTask(data)
+        onSave={async (data) => {
+          try {
+            if (taskModal.edit) await updateTask(taskModal.edit.id, data)
+            else await addTask(data)
+          } catch (e) { alert(e.message) }
         }}
         actionPlanId={taskModal.ap?.id}
         actionPlanName={taskModal.ap?.name}
