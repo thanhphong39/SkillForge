@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronDown, AlertCircle, Check, Edit3, X } from 'lucide-react'
+import { ChevronRight, ChevronDown, AlertCircle, Check, Edit3 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useStrategyMapStore } from '../../store/strategyMapStore.js'
 import { useFishboneStore } from '../../store/fishboneStore.js'
 import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 import { useKPIMeasureStore } from '../../store/kpiMeasureStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 
 const PERSPECTIVES = [
   { key: 'FINANCIAL',           label: 'Tài chính',             color: '#16a34a', badge: 'bg-emerald-100 text-emerald-700' },
@@ -30,16 +31,16 @@ const FREQUENCIES = [
 
 
 // ── KPI Measure Form ──────────────────────────────────────────
-function KPIMeasureForm({ kpi, config, onSave, onClose }) {
+function KPIMeasureForm({ config, onSave, onClose }) {
   const [form, setForm] = useState({
     unit: config?.unit ?? '',
-    baseline: config?.baseline ?? '',
-    target: config?.target ?? '',
+    baselineValue: config?.baselineValue ?? '',
+    targetValue: config?.targetValue ?? '',
     direction: config?.direction ?? 'HIGHER_IS_BETTER',
     frequency: config?.frequency ?? 'MONTHLY',
-    formula: config?.formula ?? '',
-    thresholdGreen: config?.thresholdGreen ?? 90,
-    thresholdYellow: config?.thresholdYellow ?? 70,
+    formulaDescription: config?.formulaDescription ?? '',
+    greenThreshold: config?.greenThreshold ?? 90,
+    yellowThreshold: config?.yellowThreshold ?? 70,
   })
   const f = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }))
   const fn = (k) => (e) => setForm((s) => ({ ...s, [k]: +e.target.value }))
@@ -53,11 +54,11 @@ function KPIMeasureForm({ kpi, config, onSave, onClose }) {
         </div>
         <div>
           <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Giá trị hiện tại (Baseline)</label>
-          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 bg-white" placeholder="Tuỳ chọn..." value={form.baseline} onChange={f('baseline')} />
+          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 bg-white" placeholder="Tuỳ chọn..." value={form.baselineValue} onChange={f('baselineValue')} />
         </div>
         <div>
           <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Chỉ tiêu (Target) <span className="text-red-400">*</span></label>
-          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 bg-white" placeholder="Giá trị cần đạt..." value={form.target} onChange={f('target')} />
+          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 bg-white" placeholder="Giá trị cần đạt..." value={form.targetValue} onChange={f('targetValue')} />
         </div>
         <div>
           <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Chiều đánh giá <span className="text-red-400">*</span></label>
@@ -73,7 +74,7 @@ function KPIMeasureForm({ kpi, config, onSave, onClose }) {
         </div>
         <div>
           <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Công thức (tuỳ chọn)</label>
-          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 bg-white" placeholder="VD: (Actual/Target) x 100..." value={form.formula} onChange={f('formula')} />
+          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 bg-white" placeholder="VD: (Actual/Target) x 100..." value={form.formulaDescription} onChange={f('formulaDescription')} />
         </div>
       </div>
       <div>
@@ -82,18 +83,18 @@ function KPIMeasureForm({ kpi, config, onSave, onClose }) {
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
             <span className="text-[11px] text-slate-500">Xanh ≥</span>
-            <input type="number" min={0} max={100} className="w-16 border border-slate-200 rounded px-2 py-1 text-xs text-center outline-none focus:border-blue-500 bg-white" value={form.thresholdGreen} onChange={fn('thresholdGreen')} />
+            <input type="number" min={0} max={100} className="w-16 border border-slate-200 rounded px-2 py-1 text-xs text-center outline-none focus:border-blue-500 bg-white" value={form.greenThreshold} onChange={fn('greenThreshold')} />
             <span className="text-[11px] text-slate-400">%</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-amber-400 shrink-0" />
             <span className="text-[11px] text-slate-500">Vàng ≥</span>
-            <input type="number" min={0} max={100} className="w-16 border border-slate-200 rounded px-2 py-1 text-xs text-center outline-none focus:border-blue-500 bg-white" value={form.thresholdYellow} onChange={fn('thresholdYellow')} />
+            <input type="number" min={0} max={100} className="w-16 border border-slate-200 rounded px-2 py-1 text-xs text-center outline-none focus:border-blue-500 bg-white" value={form.yellowThreshold} onChange={fn('yellowThreshold')} />
             <span className="text-[11px] text-slate-400">%</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
-            <span className="text-[11px] text-slate-500">Đỏ &lt; {form.thresholdYellow}%</span>
+            <span className="text-[11px] text-slate-500">Đỏ &lt; {form.yellowThreshold}%</span>
           </div>
         </div>
       </div>
@@ -101,7 +102,7 @@ function KPIMeasureForm({ kpi, config, onSave, onClose }) {
         <button onClick={onClose} className="flex-1 py-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Hủy</button>
         <button
           onClick={() => { onSave(form); onClose() }}
-          disabled={!form.unit.trim() || !form.target.trim()}
+          disabled={!form.unit.trim() || !form.targetValue.toString().trim()}
           className="flex-1 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 rounded-lg"
         >Lưu cấu hình</button>
       </div>
@@ -113,7 +114,7 @@ function KPIMeasureForm({ kpi, config, onSave, onClose }) {
 function KPIRow({ kpi, config, dept, onEdit }) {
   const freq = FREQUENCIES.find((f) => f.value === config?.frequency)
   const dir = DIRECTIONS.find((d) => d.value === config?.direction)
-  const isComplete = config?.unit && config?.target && config?.direction && config?.frequency
+  const isComplete = config?.unit && config?.targetValue && config?.direction && config?.frequency
 
   return (
     <div className="flex items-start gap-3 py-3 px-4 hover:bg-slate-50/50 transition-colors group">
@@ -133,15 +134,15 @@ function KPIRow({ kpi, config, dept, onEdit }) {
         {isComplete && (
           <div className="flex flex-wrap gap-3 text-[10px] text-slate-500">
             <span>📏 {config.unit}</span>
-            {config.baseline && <span>⬛ Baseline: {config.baseline}</span>}
-            <span>🎯 Target: {config.target} {config.unit}</span>
+            {config.baselineValue && <span>⬛ Baseline: {config.baselineValue}</span>}
+            <span>🎯 Target: {config.targetValue} {config.unit}</span>
             <span>{config.direction === 'HIGHER_IS_BETTER' ? '↑' : '↓'} {dir?.label}</span>
             <span>📅 {freq?.label}</span>
-            {config.formula && <span>🔢 {config.formula}</span>}
+            {config.formulaDescription && <span>🔢 {config.formulaDescription}</span>}
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />≥{config.thresholdGreen}%
-              <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" />≥{config.thresholdYellow}%
-              <span className="w-2 h-2 rounded-full bg-red-500 ml-1" />&lt;{config.thresholdYellow}%
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />≥{config.greenThreshold}%
+              <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" />≥{config.yellowThreshold}%
+              <span className="w-2 h-2 rounded-full bg-red-500 ml-1" />&lt;{config.yellowThreshold}%
             </span>
           </div>
         )}
@@ -161,8 +162,8 @@ export default function KPISetupPage() {
   const { b3Selected } = useSWOTStore()
   const mapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
-  const { markStepComplete } = useBSCWorkflowStore()
-  const measureStore = useKPIMeasureStore()
+  const { configs, fetchMeasurements, saveMeasurement, complete: completeB7 } = useKPIMeasureStore()
+  const { strategyId } = useBscContextStore()
   const navigate = useNavigate()
   const [editingKPI, setEditingKPI] = useState(null)
   const [expandedObjs, setExpandedObjs] = useState({})
@@ -172,25 +173,33 @@ export default function KPISetupPage() {
   const allKPIs = fishboneStore.getAllKPIs(objectives)
   const { departments } = fishboneStore
 
+  useEffect(() => {
+    if (strategyId) fetchMeasurements(strategyId)
+  }, [strategyId])
+
   const toggleObj = (id) => setExpandedObjs((s) => ({ ...s, [id]: !s[id] }))
 
   const configured = allKPIs.filter((k) => {
-    const cfg = measureStore.configs[k.id]
-    return cfg?.unit && cfg?.target && cfg?.direction && cfg?.frequency
+    const cfg = configs[k.id]
+    return cfg?.unit && cfg?.targetValue && cfg?.direction && cfg?.frequency
   })
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     const unconfigured = allKPIs.filter((k) => {
-      const cfg = measureStore.configs[k.id]
-      return !cfg?.unit || !cfg?.target || !cfg?.direction || !cfg?.frequency
+      const cfg = configs[k.id]
+      return !cfg?.unit || !cfg?.targetValue || !cfg?.direction || !cfg?.frequency
     })
     if (unconfigured.length > 0) {
       setErrors([`${unconfigured.length} KPI chưa được cấu hình đo lường — cần nhập Đơn vị đo, Chỉ tiêu, Chiều đánh giá và Kỳ báo cáo`])
       return
     }
     setErrors([])
-    markStepComplete('B7')
-    navigate('/action-plan')
+    try {
+      await completeB7(strategyId, allKPIs.map((k) => k.id))
+      navigate('/action-plan')
+    } catch (e) {
+      setErrors([e.message])
+    }
   }
 
   return (
@@ -236,8 +245,8 @@ export default function KPISetupPage() {
             const kpis = allKPIs.filter((k) => k.objectiveId === obj.id)
             if (kpis.length === 0) return null
             const configuredCount = kpis.filter((k) => {
-              const cfg = measureStore.configs[k.id]
-              return cfg?.unit && cfg?.target
+              const cfg = configs[k.id]
+              return cfg?.unit && cfg?.targetValue
             }).length
             const isExpanded = expandedObjs[obj.id] !== false
 
@@ -262,7 +271,7 @@ export default function KPISetupPage() {
                   <div className="divide-y divide-slate-50">
                     {kpis.map((kpi) => {
                       const dept = departments.find((d) => d.id === kpi.deptId)
-                      const cfg = measureStore.configs[kpi.id]
+                      const cfg = configs[kpi.id]
                       const isEditing = editingKPI === kpi.id
                       return (
                         <div key={kpi.id}>
@@ -275,9 +284,14 @@ export default function KPISetupPage() {
                           {isEditing && (
                             <div className="px-4 pb-3">
                               <KPIMeasureForm
-                                kpi={kpi}
                                 config={cfg}
-                                onSave={(form) => { measureStore.setConfig(kpi.id, form); setEditingKPI(null) }}
+                                onSave={async (form) => {
+                                  useKPIMeasureStore.getState().setConfig(kpi.id, form)
+                                  setEditingKPI(null)
+                                  try {
+                                    await saveMeasurement(kpi.id)
+                                  } catch {/* silent — will retry on complete */}
+                                }}
                                 onClose={() => setEditingKPI(null)}
                               />
                             </div>

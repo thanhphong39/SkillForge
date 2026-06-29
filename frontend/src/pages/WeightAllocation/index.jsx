@@ -8,6 +8,7 @@ import { useStrategyMapStore } from '../../store/strategyMapStore.js'
 import { useFishboneStore } from '../../store/fishboneStore.js'
 import { useSWOTStore } from '../../store/swotStore.js'
 import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 
 const PERSPECTIVES = [
   { id: 'FINANCIAL',          label: 'Tài chính',            color: '#16a34a', light: '#dcfce7', icon: '💰' },
@@ -62,13 +63,16 @@ export default function WeightAllocationPage() {
   const [activePerspTab, setActivePerspTab] = useState('FINANCIAL')
   const [activeObjTab, setActiveObjTab] = useState(null)
   const [saved, setSaved] = useState(false)
+  const [apiError, setApiError] = useState(null)
+  const [completing, setCompleting] = useState(false)
 
   const {
     perspectiveWeights, objectiveWeights, kpiWeights,
     setPerspectiveWeight, setObjectiveWeight, setKpiWeight,
     initObjectiveWeights, initKpiWeights, resetToDefault,
+    fetchWeightTree, saveAll, complete, saving,
   } = useWeightStore()
-  const { markStepComplete } = useBSCWorkflowStore()
+  const { strategyId } = useBscContextStore()
 
   const { b3Selected } = useSWOTStore()
   const strategyMapStore = useStrategyMapStore()
@@ -77,13 +81,22 @@ export default function WeightAllocationPage() {
   const objectives = strategyMapStore.getEffectiveFinalObjectives(b3Selected)
   const allKpis = fishboneStore.getAllKPIs(objectives)
 
-  // Auto-initialize weights when objectives/kpis are loaded
+  // Load weight tree from backend on mount
   useEffect(() => {
-    if (objectives.length > 0) initObjectiveWeights(objectives)
+    if (strategyId) fetchWeightTree(strategyId)
+  }, [strategyId])
+
+  // Auto-initialize weights when objectives/kpis are loaded (only if not fetched yet)
+  useEffect(() => {
+    if (objectives.length > 0 && Object.keys(objectiveWeights).length === 0) {
+      initObjectiveWeights(objectives)
+    }
   }, [objectives.length])
 
   useEffect(() => {
-    if (allKpis.length > 0) initKpiWeights(allKpis)
+    if (allKpis.length > 0 && Object.keys(kpiWeights).length === 0) {
+      initKpiWeights(allKpis)
+    }
   }, [allKpis.length])
 
   // Set default active objective tab to first objective in active persp
@@ -113,10 +126,36 @@ export default function WeightAllocationPage() {
   })
   const allValid = isLayer1Valid && isLayer2Valid && isLayer3Valid
 
-  const handleSave = () => {
-    markStepComplete('B6')
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  // Save weights to backend (not complete)
+  const handleSave = async () => {
+    if (!strategyId) return
+    setApiError(null)
+    try {
+      await saveAll(strategyId, { objectives, allKpis })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e) {
+      setApiError(e.message)
+    }
+  }
+
+  // Validate + complete B6
+  const handleComplete = async () => {
+    if (!allValid) {
+      setApiError('Tổng tỉ trọng chưa hợp lệ — kiểm tra lại cả 3 tầng')
+      return
+    }
+    if (!strategyId) return
+    setApiError(null)
+    setCompleting(true)
+    try {
+      await complete(strategyId, { objectives, allKpis })
+      navigate('/kpi-setup')
+    } catch (e) {
+      setApiError(e.message)
+    } finally {
+      setCompleting(false)
+    }
   }
 
   const donutData = PERSPECTIVES.map((p) => ({
@@ -152,18 +191,20 @@ export default function WeightAllocationPage() {
           </button>
           <button
             onClick={handleSave}
+            disabled={saving}
             className={clsx(
-              'flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors',
+              'flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors disabled:opacity-60',
               saved ? 'bg-emerald-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
             )}
           >
-            {saved ? '✓ Đã lưu!' : <><Save size={15} /> Lưu cấu hình</>}
+            {saving ? 'Đang lưu...' : saved ? '✓ Đã lưu!' : <><Save size={15} /> Lưu cấu hình</>}
           </button>
           <button
-            onClick={() => navigate('/kpi-setup')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-xl transition-colors"
+            onClick={handleComplete}
+            disabled={completing || saving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
           >
-            Tiếp theo: B7 <ChevronRight size={15} />
+            {completing ? 'Đang xử lý...' : <>Hoàn thành B6 <ChevronRight size={15} /></>}
           </button>
         </div>
       </div>
@@ -185,6 +226,14 @@ export default function WeightAllocationPage() {
           </div>
         ))}
       </div>
+
+      {/* API Error banner */}
+      {apiError && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-medium px-4 py-2.5 rounded-xl">
+          <AlertCircle size={14} />
+          {apiError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* Main panel */}
