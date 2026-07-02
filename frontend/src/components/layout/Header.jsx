@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore, ROLES } from '../../store/authStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 import { PeriodSelector } from '../shared/PeriodSelector.jsx'
 import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
 import { useActionPlanStore } from '../../store/actionPlanStore.js'
@@ -193,9 +194,8 @@ function UserMenu({ user, onLogout }) {
     return () => document.removeEventListener('mousedown', h)
   }, [open])
 
-  const initials = user?.name
-    ? user.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
-    : 'U'
+  const initials = (user?.fullName ?? user?.name ?? '')
+    .split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'U'
 
   return (
     <div className="relative" ref={ref}>
@@ -210,7 +210,7 @@ function UserMenu({ user, onLogout }) {
           {user?.avatar ?? initials}
         </div>
         <div className="hidden sm:block text-left">
-          <div className="text-sm font-semibold text-slate-700 leading-tight">{user?.name ?? 'Người dùng'}</div>
+          <div className="text-sm font-semibold text-slate-700 leading-tight">{user?.fullName ?? user?.name ?? 'Người dùng'}</div>
           <div className="text-[11px] text-slate-400 leading-tight">{role?.label ?? ''}</div>
         </div>
       </button>
@@ -226,8 +226,8 @@ function UserMenu({ user, onLogout }) {
                 {user?.avatar ?? initials}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-bold text-slate-800 truncate">{user?.name}</div>
-                <div className="text-[11px] text-slate-500 truncate">{user?.title}</div>
+                <div className="text-sm font-bold text-slate-800 truncate">{user?.fullName ?? user?.name}</div>
+                <div className="text-[11px] text-slate-500 truncate">{user?.title ?? user?.email}</div>
                 {user?.deptName && (
                   <div className="text-[10px] text-slate-400 truncate">{user.deptName}</div>
                 )}
@@ -267,6 +267,7 @@ export function Header({ title }) {
   const unread = notifications.length
 
   const handleLogout = () => {
+    useBscContextStore.getState().reset()
     logout()
     navigate('/login', { replace: true })
   }

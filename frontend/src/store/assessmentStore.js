@@ -255,7 +255,16 @@ export const useAssessmentStore = create((set, get) => ({
 
   // ── Complete B1 ────────────────────────────────────────────────────────────
   complete: async () => {
-    const strategyId = useBscContextStore.getState().strategyId
+    // Ensure strategyId is available — re-init if not (handles timing race condition)
+    let strategyId = useBscContextStore.getState().strategyId
+    if (!strategyId) {
+      try {
+        await useBscContextStore.getState().init()
+        strategyId = useBscContextStore.getState().strategyId
+      } catch {
+        // ignore
+      }
+    }
     if (!strategyId) return ['Chưa khởi tạo chiến lược. Vui lòng đăng nhập lại.']
 
     const errs = get().validate()

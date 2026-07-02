@@ -18,8 +18,8 @@ import WeightAllocationPage from './pages/WeightAllocation/index.jsx'
 import ActionPlanPage from './pages/ActionPlan/index.jsx'
 
 function RequireAuth() {
-  const { user } = useAuthStore()
-  if (!user) return <Navigate to="/login" replace />
+  const { user, token } = useAuthStore()
+  if (!user || !token) return <Navigate to="/login" replace />
   return <Outlet />
 }
 

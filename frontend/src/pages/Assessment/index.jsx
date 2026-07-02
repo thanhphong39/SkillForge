@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, Plus, Trash2, Edit3, Save, X, AlertCircle,
   BarChart2, PieChart as PieIcon, Layers, Star, Zap, Shield, Target, TrendingUp,
+  Loader2,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -494,10 +495,17 @@ function SimpleListSection({ icon, iconColor, title, subtitle, field, placeholde
 // ────────────────────────────────────────────────────────────
 export default function AssessmentPage() {
   const { complete, fetch, loading } = useAssessmentStore()
-  const { strategyId } = useBscContextStore()
+  const { strategyId, loading: ctxLoading, error: ctxError, init } = useBscContextStore()
   const navigate = useNavigate()
   const [errors, setErrors] = useState([])
   const [completing, setCompleting] = useState(false)
+
+  // If strategyId is missing on mount, try to init
+  useEffect(() => {
+    if (!strategyId && !ctxLoading) {
+      init()
+    }
+  }, [])
 
   useEffect(() => {
     if (strategyId) fetch(strategyId)
@@ -518,10 +526,36 @@ export default function AssessmentPage() {
     navigate('/strategy-build/swot')
   }
 
+  if (ctxLoading) {
+    return (
+      <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 size={28} className="text-blue-500 animate-spin" />
+        <p className="text-slate-500 text-sm">Đang khởi tạo chiến lược...</p>
+      </div>
+    )
+  }
+
+  if (!strategyId && ctxError) {
+    return (
+      <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-20 gap-4">
+        <AlertCircle size={32} className="text-red-500" />
+        <p className="text-slate-700 text-sm font-medium">Không thể khởi tạo chiến lược BSC</p>
+        <p className="text-slate-500 text-xs">{ctxError}</p>
+        <button
+          onClick={() => init()}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          Thử lại
+        </button>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto flex items-center justify-center py-20">
-        <p className="text-slate-400 text-sm">Đang tải dữ liệu...</p>
+        <Loader2 size={24} className="text-blue-400 animate-spin" />
+        <p className="text-slate-400 text-sm ml-2">Đang tải dữ liệu...</p>
       </div>
     )
   }

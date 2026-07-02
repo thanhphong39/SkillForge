@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import companyService from '../services/companyService.js'
 import bscStrategyService from '../services/bscStrategyService.js'
+import { useAuthStore } from './authStore.js'
 
 export const useBscContextStore = create(
   persist(
@@ -11,37 +11,46 @@ export const useBscContextStore = create(
       loading: false,
       error: null,
 
-      // Call after login — creates company + strategy if first time, otherwise reuses persisted IDs
+      /**
+       * Called after login — uses companyId from JWT user info.
+       * Creates a BSC strategy for this year if none exists yet,
+       * otherwise reuses the persisted strategyId.
+       */
       init: async () => {
-        const { companyId, strategyId, loading } = get()
+        const { loading } = get()
         if (loading) return
+
+        // Get companyId from the authenticated user (JWT)
+        const authUser = useAuthStore.getState().user
+        const companyId = authUser?.companyId ?? get().companyId
+        if (!companyId) {
+          set({ error: 'Không tìm thấy thông tin công ty. Vui lòng đăng nhập lại.' })
+          return
+        }
+
+        // Persist companyId from JWT
+        if (companyId !== get().companyId) {
+          set({ companyId })
+        }
+
+        const { strategyId } = get()
         if (strategyId) {
-          // Already have a strategy — verify it still exists
+          // Verify the strategy still exists
           try {
             await bscStrategyService.getById(strategyId)
           } catch {
             // Strategy gone — clear and re-init
-            set({ strategyId: null })
-            await get().init()
+            set({ strategyId: null, error: null })
+            return await get().init()
           }
           return
         }
 
+        // Create a new BSC strategy for the current year
         set({ loading: true, error: null })
         try {
-          let cId = companyId
-          if (!cId) {
-            const company = await companyService.create({
-              name: 'Công ty CP Thiên Phú',
-              industry: 'Technology',
-              size: 'MEDIUM',
-            })
-            cId = company.id
-            set({ companyId: cId })
-          }
-
           const year = new Date().getFullYear()
-          const strategy = await bscStrategyService.create(cId, {
+          const strategy = await bscStrategyService.create(companyId, {
             name: `Chiến lược BSC ${year}`,
             description: `Kế hoạch BSC năm ${year}`,
             year,
@@ -55,7 +64,9 @@ export const useBscContextStore = create(
       // Allow manual override (e.g. admin selects an existing strategy)
       setStrategyId: (id) => set({ strategyId: id }),
       setCompanyId: (id) => set({ companyId: id }),
-      reset: () => set({ companyId: null, strategyId: null }),
+      reset: () => set({ companyId: null, strategyId: null, error: null }),
+      // Convenience: true when strategyId is set and not loading
+      isReady: () => !!get().strategyId && !get().loading,
     }),
     {
       name: 'bsc-context',

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useBscContextStore } from '../../store/bscContextStore.js'
 import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
@@ -8,38 +8,36 @@ import clsx from 'clsx'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { user, login } = useAuthStore()
+  const { user, login, loading: authLoading, error: authError } = useAuthStore()
 
-  const [username, setUsername] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [localError, setLocalError] = useState('')
 
   if (user) return <Navigate to="/dashboard" replace />
 
+  const error = localError || authError
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
-    if (!username.trim() || !password) {
-      setError('Vui lòng nhập tên đăng nhập và mật khẩu.')
+    setLocalError('')
+
+    if (!email.trim() || !password) {
+      setLocalError('Vui lòng nhập email và mật khẩu.')
       return
     }
-    setLoading(true)
-    await new Promise((r) => setTimeout(r, 700))
-    const ok = login(username, password)
+
+    const ok = await login(email.trim(), password)
     if (ok) {
-      // Init BSC context (create company + strategy if first time)
+      // Init BSC context after successful login (companyId comes from JWT)
       useBscContextStore.getState().init().then(() => {
         const { strategyId } = useBscContextStore.getState()
         if (strategyId) useBSCWorkflowStore.getState().fetchSteps(strategyId)
       })
-      setLoading(false)
       navigate('/dashboard', { replace: true })
-    } else {
-      setLoading(false)
-      setError('Tên đăng nhập hoặc mật khẩu không đúng.')
     }
+    // on failure, authError is set by authStore and displayed below
   }
 
   return (
@@ -106,18 +104,18 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Username */}
+            {/* Email */}
             <div>
               <label className="block text-sm font-semibold text-[#1C2434] mb-2">
-                Tên đăng nhập
+                Email
               </label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Nhập tên đăng nhập"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ceo@skillforge.vn"
                 autoFocus
-                autoComplete="username"
+                autoComplete="email"
                 className="w-full px-4 py-3 text-sm text-[#1C2434] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg outline-none placeholder:text-[#94A3B8] transition-all duration-200 focus:border-[#3C50E0] focus:ring-2 focus:ring-[#3C50E0]/10 focus:bg-white"
               />
             </div>
@@ -126,9 +124,6 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-[#1C2434]">Mật khẩu</label>
-                <button type="button" className="text-xs text-[#3C50E0] hover:text-[#3142C4] transition-colors font-medium">
-                  Quên mật khẩu?
-                </button>
               </div>
               <div className="relative">
                 <input
@@ -150,32 +145,27 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember */}
-            <div className="flex items-center gap-2.5">
-              <input
-                type="checkbox"
-                id="remember"
-                className="w-4 h-4 rounded accent-[#3C50E0] cursor-pointer"
-              />
-              <label htmlFor="remember" className="text-sm text-[#64748B] cursor-pointer select-none">
-                Ghi nhớ đăng nhập
-              </label>
+            {/* Demo hint */}
+            <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 space-y-0.5">
+              <p className="font-semibold mb-1">Tài khoản demo</p>
+              <p>CEO: <span className="font-mono">ceo@skillforge.vn</span> / <span className="font-mono">123456</span></p>
+              <p>Admin: <span className="font-mono">admin@skillforge.vn</span> / <span className="font-mono">123456</span></p>
             </div>
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={authLoading}
               className={clsx(
                 'relative w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden',
-                loading
+                authLoading
                   ? 'bg-[#3C50E0]/60 text-white cursor-not-allowed'
                   : 'bg-[#3C50E0] hover:bg-[#3142C4] active:scale-[0.99] text-white shadow-md shadow-[#3C50E0]/30 hover:shadow-lg hover:shadow-[#3C50E0]/40'
               )}
             >
-              {loading ? (
+              {authLoading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <Loader2 size={16} className="animate-spin" />
                   Đang đăng nhập...
                 </>
               ) : 'Đăng nhập'}
