@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import authService from '../services/authService.js'
+import profileService from '../services/profileService.js'
 
 // ── Role display mapping ──────────────────────────────────────────────────────
 export const ROLES = {
@@ -44,6 +45,37 @@ export const useAuthStore = create(
       logout: () => set({ user: null, token: null, error: null }),
 
       clearError: () => set({ error: null }),
+
+      /**
+       * Update local user profile (fullName, title) — also persists to backend.
+       * Returns { ok, error }.
+       */
+      updateProfile: async (fullName, title) => {
+        try {
+          await profileService.updateProfile(fullName, title)
+          set((state) => ({
+            user: state.user
+              ? { ...state.user, fullName: fullName || state.user.fullName, title: title ?? state.user.title }
+              : state.user,
+          }))
+          return { ok: true }
+        } catch (e) {
+          return { ok: false, error: e.message }
+        }
+      },
+
+      /**
+       * Change password — calls backend API.
+       * Returns { ok, error }.
+       */
+      changePassword: async (currentPassword, newPassword) => {
+        try {
+          await profileService.changePassword(currentPassword, newPassword)
+          return { ok: true }
+        } catch (e) {
+          return { ok: false, error: e.message }
+        }
+      },
     }),
     {
       name: 'skillforge-auth',

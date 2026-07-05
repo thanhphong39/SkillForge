@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Circle, Loader2, ChevronRight,
@@ -18,6 +18,7 @@ import { useFishboneStore } from '../../store/fishboneStore.js'
 import { useWeightStore } from '../../store/weightStore.js'
 import { useActionPlanStore, STATUS_META } from '../../store/actionPlanStore.js'
 import { useKPIMeasureStore } from '../../store/kpiMeasureStore.js'
+import { useBscContextStore } from '../../store/bscContextStore.js'
 
 const PERSPECTIVES = [
   { id: 'FINANCIAL',           label: 'Tài chính',            color: '#16a34a', light: '#f0fdf4', icon: '💰' },
@@ -461,13 +462,19 @@ function BlockedTasksAlert({ tasks, actionPlans, allKpis, navigate }) {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { steps } = useBSCWorkflowStore()
+  const { steps, fetchSteps } = useBSCWorkflowStore()
+  const { strategyId } = useBscContextStore()
   const { b3Selected } = useSWOTStore()
   const strategyMapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
   const { perspectiveWeights } = useWeightStore()
   const { actionPlans, tasks, kpiReports } = useActionPlanStore()
   const measureStore = useKPIMeasureStore()
+
+  // Sync step statuses from DB on mount so Dashboard always reflects real state
+  useEffect(() => {
+    if (strategyId) fetchSteps(strategyId)
+  }, [strategyId])
 
   const objectives = strategyMapStore.getEffectiveFinalObjectives(b3Selected)
   const allKpis = fishboneStore.getAllKPIs(objectives)
@@ -481,6 +488,7 @@ export default function DashboardPage() {
   const completedCount = Object.values(steps).filter((s) => s.status === 'completed').length
   const blockedTasks = tasks.filter((t) => t.status === 'BLOCKED').length
   const doneTasks = tasks.filter((t) => t.status === 'DONE').length
+  const allDone = completedCount === 8
 
   const nextStep = STEPS.find((s) => {
     const status = steps[s.id]?.status
@@ -512,6 +520,24 @@ export default function DashboardPage() {
           </button>
         )}
       </div>
+
+      {/* Completion Banner */}
+      {allDone && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-[#3C50E0] rounded-2xl p-6 text-white shadow-lg">
+          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10" />
+          <div className="absolute -bottom-6 right-20 w-24 h-24 rounded-full bg-white/10" />
+          <div className="relative flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 text-2xl">
+              🎉
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Chúc mừng! Đã hoàn thành 8/8 bước BSC!</h2>
+              <p className="text-sm text-white/80 mt-0.5">Toàn bộ quy trình BSC đã được lưu vào database. Hệ thống sẵn sàng theo dõi hiệu suất.</p>
+            </div>
+            <CheckCircle2 size={40} className="ml-auto shrink-0 text-white/70" />
+          </div>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">

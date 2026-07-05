@@ -16,6 +16,7 @@ import PerspectivesPage from './pages/StrategyMap/PerspectivesPage.jsx'
 import FishbonePage from './pages/Fishbone/index.jsx'
 import WeightAllocationPage from './pages/WeightAllocation/index.jsx'
 import ActionPlanPage from './pages/ActionPlan/index.jsx'
+import SettingsPage from './pages/Settings/index.jsx'
 
 function RequireAuth() {
   const { user, token } = useAuthStore()
@@ -54,6 +55,9 @@ export const router = createBrowserRouter([
           // Tools
           { path: 'kpi-entry',                   element: <KPIEntryPage /> },
           { path: 'reports',                     element: <ReportsPage /> },
+
+          // Settings
+          { path: 'settings',                    element: <SettingsPage /> },
         ],
       },
     ],

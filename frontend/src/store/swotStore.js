@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import strategyBuildingService from '../services/strategyBuildingService.js'
 import strategySelectionService from '../services/strategySelectionService.js'
 import { useBscContextStore } from './bscContextStore.js'
@@ -43,108 +44,262 @@ const buildAnalysisItems = (sevenS, fiveForces, pestel) => {
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-export const useSWOTStore = create((set, get) => ({
-  // Raw backend state (needed for ID mapping)
-  analysisItemsRaw: [],
-  swotItemsRaw: [],
+export const useSWOTStore = create(
+  persist(
+    (set, get) => ({
+      currentStrategyId: null,
 
-  // Nested analysis items (for display, keeps page interface compatible)
-  sevenS: {},
-  fiveForces: {},
-  pestel: {},
+      // Raw backend state (needed for ID mapping)
+      analysisItemsRaw: [],
+      swotItemsRaw: [],
 
-  // SWOT selections (arrays of sourceAnalysisItemId)
-  swotS: [],
-  swotW: [],
-  swotO: [],
-  swotT: [],
+      // Nested analysis items (for display, keeps page interface compatible)
+      sevenS: {},
+      fiveForces: {},
+      pestel: {},
 
-  // Candidate strategies (frontend-friendly format with backend IDs)
-  strategies: [],
+      // SWOT selections (arrays of sourceAnalysisItemId)
+      swotS: [],
+      swotW: [],
+      swotO: [],
+      swotT: [],
 
-  // B3 selection
-  b3Selected: [],
-  b3Notes: {},
+      // Candidate strategies (frontend-friendly format with backend IDs)
+      strategies: [],
 
-  loading: false,
-  saving: false,
-  error: null,
+      // B3 selection
+      b3Selected: [],
+      b3Notes: {},
 
-  // ── Fetch B2 + B3 data ───────────────────────────────────────────────────
-  fetch: async (strategyId) => {
-    if (!strategyId) return
-    set({ loading: true, error: null })
-    try {
-      // Load full B2 state (analysis items + swot items + candidates)
-      const building = await strategyBuildingService.getBuilding(strategyId)
-      const analysisItemsRaw = building?.analysisItems || []
-      const swotItemsRaw = (building?.swotItems || []).map((si) => ({
-        id: si.id,
-        swotType: String(si.swotType),
-        sourceAnalysisItemId: si.sourceAnalysisItemId,
-      }))
+      loading: false,
+      saving: false,
+      error: null,
 
-      // Reconstruct nested analysis items by model type
-      const sevenS = {}; const fiveForces = {}; const pestel = {}
-      analysisItemsRaw.forEach((item) => {
-        const key = MODEL_TYPE_TO_KEY[item.modelType]
-        if (!key) return
-        const target = { sevenS, fiveForces, pestel }[key]
-        if (!target[item.factorCode]) target[item.factorCode] = []
-        target[item.factorCode].push({ id: item.id, value: item.content })
-      })
+      // ── Fetch B2 + B3 data ───────────────────────────────────────────────────
+      fetch: async (strategyId) => {
+        if (!strategyId) return
 
-      // SWOT selections
-      const swotS = swotItemsRaw.filter((i) => i.swotType === 'S').map((i) => i.sourceAnalysisItemId)
-      const swotW = swotItemsRaw.filter((i) => i.swotType === 'W').map((i) => i.sourceAnalysisItemId)
-      const swotO = swotItemsRaw.filter((i) => i.swotType === 'O').map((i) => i.sourceAnalysisItemId)
-      const swotT = swotItemsRaw.filter((i) => i.swotType === 'T').map((i) => i.sourceAnalysisItemId)
+        // Clear local state if switching to a different strategy
+        if (get().currentStrategyId !== strategyId) {
+          set({
+            currentStrategyId: strategyId,
+            analysisItemsRaw: [],
+            swotItemsRaw: [],
+            sevenS: {}, fiveForces: {}, pestel: {},
+            swotS: [], swotW: [], swotO: [], swotT: [],
+            strategies: [], b3Selected: [], b3Notes: {}
+          })
+        }
 
-      // Candidate strategies
-      const rawCandidates = building?.candidateStrategies || []
-      const strategies = rawCandidates
-        .filter((cs) => cs.status !== 'DELETED')
-        .map((cs) => ({
-          id: cs.id,
-          type: String(cs.strategyGroup),
-          name: cs.name,
-          description: cs.description || '',
-          sItems: (cs.swotItems || []).filter((si) => String(si.swotType) === 'S').map((si) => si.sourceAnalysisItemId),
-          wItems: (cs.swotItems || []).filter((si) => String(si.swotType) === 'W').map((si) => si.sourceAnalysisItemId),
-          oItem: (cs.swotItems || []).find((si) => String(si.swotType) === 'O')?.sourceAnalysisItemId ?? null,
-          tItem: (cs.swotItems || []).find((si) => String(si.swotType) === 'T')?.sourceAnalysisItemId ?? null,
-        }))
+        set({ loading: true, error: null })
+        try {
+          // ── Load candidates (the only B2 GET endpoint that exists) ──────────
+          const rawCandidates = await strategyBuildingService.listCandidateStrategies(strategyId)
+          const activeCandidates = (rawCandidates || []).filter((cs) => cs.status !== 'DELETED')
 
-      // Load B3 selection
-      let b3Selected = []
-      try {
-        const selectionResp = await strategySelectionService.get(strategyId)
-        b3Selected = ((selectionResp?.selectedStrategies) || [])
-          .sort((a, b) => (a.priorityOrder ?? 0) - (b.priorityOrder ?? 0))
-          .map((s) => s.candidateStrategyId)
-          .filter(Boolean)
-      } catch {
-        // B3 not started yet, ignore
-      }
+          // ── Merge analysisItemsRaw ──────────────────────────────────────────
+          // Because backend lacks a GET endpoint for analysis items, we MUST retain
+          // what the user typed locally (from persist). We merge backend data on top.
+          const analysisMap = new Map()
+          get().analysisItemsRaw.forEach((item) => analysisMap.set(item.id, item))
 
-      set({ analysisItemsRaw, swotItemsRaw, sevenS, fiveForces, pestel, swotS, swotW, swotO, swotT, strategies, b3Selected, loading: false })
-    } catch {
-      set({ loading: false })
-    }
-  },
+          const swotItemMap  = new Map()
+          get().swotItemsRaw.forEach((item) => swotItemMap.set(item.id, item))
+
+          activeCandidates.forEach((cs) => {
+            ;(cs.swotItems || []).forEach((si) => {
+              if (!analysisMap.has(si.sourceAnalysisItemId)) {
+                analysisMap.set(si.sourceAnalysisItemId, {
+                  id:           si.sourceAnalysisItemId,
+                  modelType:    si.sourceModelType,
+                  factorCode:   si.sourceFactorCode,
+                  content:      si.contentSnapshot,
+                  displayOrder: 0,
+                })
+              }
+              if (!swotItemMap.has(si.swotItemId)) {
+                swotItemMap.set(si.swotItemId, {
+                  id:                  si.swotItemId,
+                  swotType:            String(si.swotType),
+                  sourceAnalysisItemId: si.sourceAnalysisItemId,
+                })
+              }
+            })
+          })
+          // Use safe sync to heal any fake IDs
+          try {
+            const syncResp = await get()._safeSyncFromBackend()
+            if (syncResp?.swotItems) {
+              swotItemMap.clear()
+              syncResp.swotItems.forEach((si) => {
+                swotItemMap.set(si.id, {
+                  id:                  si.id,
+                  swotType:            String(si.swotType),
+                  sourceAnalysisItemId: si.sourceAnalysisItemId,
+                })
+              })
+            }
+          } catch (syncErr) {
+            console.error('Self-healing sync in fetch failed:', syncErr)
+          }
+
+          // Reload analysisMap after sync
+          analysisMap.clear()
+          get().analysisItemsRaw.forEach((item) => analysisMap.set(item.id, item))
+
+          const analysisItemsRaw = [...analysisMap.values()]
+          const swotItemsRaw     = [...swotItemMap.values()]
+
+          // ── Reconstruct nested sevenS / fiveForces / pestel ───────────────────
+          const sevenS = {}; const fiveForces = {}; const pestel = {}
+          analysisItemsRaw.forEach((item) => {
+            const key = MODEL_TYPE_TO_KEY[item.modelType]
+            if (!key) return
+            const target = { sevenS, fiveForces, pestel }[key]
+            if (!target[item.factorCode]) target[item.factorCode] = []
+            if (!target[item.factorCode].find((e) => e.id === item.id)) {
+              target[item.factorCode].push({ id: item.id, value: item.content })
+            }
+          })
+
+          // ── SWOT selections ────────────────────────────────────────────────────
+          // Also merge with locally persisted selections (in case user selected SWOT but hasn't created a strategy)
+          const localSwotS = new Set(get().swotS)
+          const localSwotW = new Set(get().swotW)
+          const localSwotO = new Set(get().swotO)
+          const localSwotT = new Set(get().swotT)
+
+          swotItemsRaw.forEach((i) => {
+            if (i.swotType === 'S') localSwotS.add(i.sourceAnalysisItemId)
+            if (i.swotType === 'W') localSwotW.add(i.sourceAnalysisItemId)
+            if (i.swotType === 'O') localSwotO.add(i.sourceAnalysisItemId)
+            if (i.swotType === 'T') localSwotT.add(i.sourceAnalysisItemId)
+          })
+
+          const swotS = [...localSwotS]
+          const swotW = [...localSwotW]
+          const swotO = [...localSwotO]
+          const swotT = [...localSwotT]
+
+          // ── Candidate strategies (frontend-friendly) ───────────────────────────
+          const strategies = activeCandidates.map((cs) => ({
+            id:          cs.id,
+            type:        String(cs.strategyGroup),
+            name:        cs.name,
+            description: cs.description || '',
+            sItems: (cs.swotItems || []).filter((si) => String(si.swotType) === 'S').map((si) => si.sourceAnalysisItemId),
+            wItems: (cs.swotItems || []).filter((si) => String(si.swotType) === 'W').map((si) => si.sourceAnalysisItemId),
+            oItem:  (cs.swotItems || []).find((si) => String(si.swotType) === 'O')?.sourceAnalysisItemId ?? null,
+            tItem:  (cs.swotItems || []).find((si) => String(si.swotType) === 'T')?.sourceAnalysisItemId ?? null,
+          }))
+
+          // ── Load B3 selection ──────────────────────────────────────────────────
+          let b3Selected = []
+          try {
+            const selectionResp = await strategySelectionService.get(strategyId)
+            b3Selected = ((selectionResp?.selectedStrategies) || [])
+              .sort((a, b) => (a.priorityOrder ?? 0) - (b.priorityOrder ?? 0))
+              .map((s) => s.candidateStrategyId)
+              .filter(Boolean)
+          } catch {
+            // B3 not started yet — ignore
+          }
+
+          set({ analysisItemsRaw, swotItemsRaw, sevenS, fiveForces, pestel, swotS, swotW, swotO, swotT, strategies, b3Selected, loading: false })
+        } catch (e) {
+          console.error('[swotStore] fetch failed:', e)
+          set({ loading: false })
+        }
+      },
 
   // ── Source model CRUD (7S / 5 Forces / PESTEL) ───────────────────────────
-  addSourceItem: (modelKey, factor, value) => {
-    const id = uid()
+
+  /**
+   * Re-sync analysisItemsRaw + sevenS/fiveForces/pestel with backend response.
+   * After an upsert, backend assigns real UUIDs. We match by content+modelType+factorCode
+   * and update local IDs so swotItem operations receive valid backend UUIDs.
+   */
+  _syncAnalysisItemsFromResponse: (responseItems) => {
+    if (!responseItems || responseItems.length === 0) return
+    const { sevenS, fiveForces, pestel } = get()
+    const newRaw = responseItems.map((item) => ({
+      id: item.id,
+      modelType: item.modelType,
+      factorCode: item.factorCode,
+      content: item.content,
+      displayOrder: item.displayOrder ?? 0,
+    }))
+
+    // Rebuild nested display model with backend IDs
+    const newSevenS = {}; const newFiveForces = {}; const newPestel = {}
+    responseItems.forEach((item) => {
+      const key = MODEL_TYPE_TO_KEY[item.modelType]
+      if (!key) return
+      const target = { sevenS: newSevenS, fiveForces: newFiveForces, pestel: newPestel }[key]
+      if (!target[item.factorCode]) target[item.factorCode] = []
+      target[item.factorCode].push({ id: item.id, value: item.content })
+    })
+
+    // Preserve factors that existed locally but weren't in response (edge case)
+    // by keeping original entries not in response
+    const mergeWithFallback = (original, updated) => {
+      const result = { ...original }
+      Object.keys(updated).forEach((factor) => {
+        result[factor] = updated[factor]
+      })
+      return result
+    }
+
+    set({
+      analysisItemsRaw: newRaw,
+      sevenS:     mergeWithFallback(sevenS,     newSevenS),
+      fiveForces: mergeWithFallback(fiveForces, newFiveForces),
+      pestel:     mergeWithFallback(pestel,     newPestel),
+    })
+  },
+
+  _safeSyncFromBackend: async () => {
+    const strategyId = useBscContextStore.getState().strategyId
+    if (!strategyId) return null
+
+    // Load active candidates directly from backend to determine TRUE source analysis IDs
+    const rawCandidates = await strategyBuildingService.listCandidateStrategies(strategyId).catch(() => [])
+    const activeCandidates = (rawCandidates || []).filter((cs) => cs.status !== 'DELETED')
+    
+    const realAnalysisIds = new Set()
+    activeCandidates.forEach((cs) => {
+      ;(cs.swotItems || []).forEach((si) => realAnalysisIds.add(si.sourceAnalysisItemId))
+    })
+
+    const safePayload = get().analysisItemsRaw.map(a => ({
+      id: realAnalysisIds.has(a.id) ? a.id : undefined, // ONLY send IDs verified by the backend
+      modelType: a.modelType,
+      factorCode: a.factorCode,
+      content: a.content,
+      displayOrder: a.displayOrder || 0
+    }))
+
+    if (safePayload.length === 0) return null
+
+    const syncResp = await strategyBuildingService.upsertAnalysisItems(strategyId, safePayload)
+    if (syncResp?.analysisItems) {
+      get()._syncAnalysisItemsFromResponse(syncResp.analysisItems)
+    }
+    return syncResp
+  },
+
+  addSourceItem: async (modelKey, factor, value) => {
+    const tempId = uid()
+    // Optimistic update with temp ID
     set((state) => ({
       [modelKey]: {
         ...state[modelKey],
-        [factor]: [...(state[modelKey][factor] || []), { id, value: value.trim() }],
+        [factor]: [...(state[modelKey][factor] || []), { id: tempId, value: value.trim() }],
       },
       analysisItemsRaw: [
         ...state.analysisItemsRaw,
         {
-          id,
+          id: tempId,
           modelType: MODEL_KEY_TO_TYPE[modelKey],
           factorCode: factor,
           content: value.trim(),
@@ -152,15 +307,19 @@ export const useSWOTStore = create((set, get) => ({
         },
       ],
     }))
-    // Fire-and-forget sync to backend
+
+    // Sync to backend — send without id for new items (id=undefined → backend creates)
     const strategyId = useBscContextStore.getState().strategyId
     if (strategyId) {
-      const all = buildAnalysisItems(get().sevenS, get().fiveForces, get().pestel)
-      strategyBuildingService.upsertAnalysisItems(strategyId, all).catch(console.error)
+      try {
+        const response = await get()._safeSyncFromBackend()
+      } catch (e) {
+        console.error('upsertAnalysisItems failed:', e)
+      }
     }
   },
 
-  updateSourceItem: (modelKey, factor, id, value) => {
+  updateSourceItem: async (modelKey, factor, id, value) => {
     set((state) => ({
       [modelKey]: {
         ...state[modelKey],
@@ -174,8 +333,11 @@ export const useSWOTStore = create((set, get) => ({
     }))
     const strategyId = useBscContextStore.getState().strategyId
     if (strategyId) {
-      const all = buildAnalysisItems(get().sevenS, get().fiveForces, get().pestel)
-      strategyBuildingService.upsertAnalysisItems(strategyId, all).catch(console.error)
+      try {
+        const response = await get()._safeSyncFromBackend()
+      } catch (e) {
+        console.error('upsertAnalysisItems failed:', e)
+      }
     }
   },
 
@@ -205,8 +367,11 @@ export const useSWOTStore = create((set, get) => ({
 
     const strategyId = useBscContextStore.getState().strategyId
     if (strategyId) {
-      const all = buildAnalysisItems(get().sevenS, get().fiveForces, get().pestel)
-      strategyBuildingService.upsertAnalysisItems(strategyId, all).catch(console.error)
+      try {
+        get()._safeSyncFromBackend()
+      } catch (e) {
+        console.error('upsertAnalysisItems failed during remove:', e)
+      }
     }
   },
 
@@ -256,7 +421,19 @@ export const useSWOTStore = create((set, get) => ({
             newSwotItem = { id: created.id, swotType: quadrant, sourceAnalysisItemId: analysisItemId }
           }
         } catch (e) {
-          console.error('createSwotItem failed:', e)
+          console.error('createSwotItem failed, attempting to sync from backend:', e)
+          // Fallback: If it failed (e.g. duplicated source), force a safe sync to fetch the real ID
+          try {
+            const syncResp = await get()._safeSyncFromBackend()
+            const created = (syncResp?.swotItems || []).find(
+              (si) => String(si.swotType) === quadrant && si.sourceAnalysisItemId === analysisItemId
+            )
+            if (created?.id) {
+              newSwotItem = { id: created.id, swotType: quadrant, sourceAnalysisItemId: analysisItemId }
+            }
+          } catch (syncErr) {
+            console.error('sync fallback failed:', syncErr)
+          }
         }
       }
 
@@ -325,6 +502,8 @@ export const useSWOTStore = create((set, get) => ({
         set((state) => ({ strategies: [...state.strategies, newStrategy] }))
       } catch (e) {
         console.error('createCandidateStrategy failed:', e)
+        const msg = e.response?.data?.message || e.message || 'Lỗi khi tạo chiến lược'
+        import('../components/ui/toast.jsx').then(m => m.toast.error(msg))
       }
     } else {
       // No backend — local fallback
@@ -355,14 +534,18 @@ export const useSWOTStore = create((set, get) => ({
     }))
 
     if (strategyId) {
-      strategyBuildingService
-        .updateCandidateStrategy(id, {
+      try {
+        await strategyBuildingService.updateCandidateStrategy(id, {
           strategyGroup: data.type,
           name: data.name,
           description: data.description || '',
           swotItemIds,
         })
-        .catch(console.error)
+      } catch (e) {
+        console.error('updateCandidateStrategy failed:', e)
+        const msg = e.response?.data?.message || e.message || 'Lỗi khi cập nhật chiến lược'
+        import('../components/ui/toast.jsx').then(m => m.toast.error(msg))
+      }
     }
   },
 
@@ -508,8 +691,24 @@ export const useSWOTStore = create((set, get) => ({
       set({ saving: false })
       return []
     } catch (e) {
-      set({ saving: false, error: e.message })
       return [e.message]
     }
   },
+}), {
+  name: 'bsc-swot-storage',
+  partialize: (state) => ({
+    currentStrategyId: state.currentStrategyId,
+    analysisItemsRaw: state.analysisItemsRaw,
+    swotItemsRaw: state.swotItemsRaw,
+    sevenS: state.sevenS,
+    fiveForces: state.fiveForces,
+    pestel: state.pestel,
+    swotS: state.swotS,
+    swotW: state.swotW,
+    swotO: state.swotO,
+    swotT: state.swotT,
+    strategies: state.strategies,
+    b3Selected: state.b3Selected,
+    b3Notes: state.b3Notes
+  })
 }))

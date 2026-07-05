@@ -185,7 +185,20 @@ function NotificationPanel({ notifications, onClose, navigate }) {
 function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
+  const navigate = useNavigate()
   const role = ROLES[user?.role]
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    try { return localStorage.getItem('skillforge-avatar') || null } catch { return null }
+  })
+
+  // Sync avatar when localStorage changes (e.g. updated from Settings page)
+  useEffect(() => {
+    const onStorage = () => {
+      try { setAvatarUrl(localStorage.getItem('skillforge-avatar') || null) } catch { /* ignore */ }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -204,10 +217,13 @@ function UserMenu({ user, onLogout }) {
         className="flex items-center gap-2.5 pl-4 border-l border-slate-200 cursor-pointer"
       >
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white shadow-sm"
-          style={{ background: role?.color ?? '#3C50E0' }}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white shadow-sm overflow-hidden"
+          style={{ background: avatarUrl ? 'transparent' : (role?.color ?? '#3C50E0') }}
         >
-          {user?.avatar ?? initials}
+          {avatarUrl
+            ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+            : (user?.avatar ?? initials)
+          }
         </div>
         <div className="hidden sm:block text-left">
           <div className="text-sm font-semibold text-slate-700 leading-tight">{user?.fullName ?? user?.name ?? 'Người dùng'}</div>
@@ -220,10 +236,13 @@ function UserMenu({ user, onLogout }) {
           <div className="px-4 py-4 bg-linear-to-br from-[#3C50E0]/5 to-slate-50 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow"
-                style={{ background: role?.color ?? '#3C50E0' }}
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow overflow-hidden"
+                style={{ background: avatarUrl ? 'transparent' : (role?.color ?? '#3C50E0') }}
               >
-                {user?.avatar ?? initials}
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  : (user?.avatar ?? initials)
+                }
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-bold text-slate-800 truncate">{user?.fullName ?? user?.name}</div>
@@ -244,6 +263,13 @@ function UserMenu({ user, onLogout }) {
             </div>
           </div>
           <div className="p-2">
+            <button
+              onClick={() => { navigate('/settings'); setOpen(false) }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors font-medium"
+            >
+              <Settings size={15} />
+              Cài đặt tài khoản
+            </button>
             <button
               onClick={() => { onLogout(); setOpen(false) }}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"

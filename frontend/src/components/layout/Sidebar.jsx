@@ -3,8 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Lightbulb, Target, Map,
   GitBranch, ListChecks, Scale, Rocket, ChevronDown,
-  CheckCircle2, Circle, Loader2, BarChart2, PenSquare,
-  FileText, PanelLeftClose, PanelLeftOpen,
+  CheckCircle2, Circle, Loader2, Settings,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useUIStore } from '../../store/uiStore.js'
@@ -57,8 +57,7 @@ const NAV_STEPS = [
 ]
 
 const TOOL_LINKS = [
-  { to: '/kpi-entry', icon: PenSquare, label: 'Nhập liệu KPI' },
-  { to: '/reports',   icon: FileText,  label: 'Báo cáo & Phân tích' },
+  { to: '/settings', icon: Settings, label: 'Cài đặt tài khoản' },
 ]
 
 function StepStatus({ status }) {
@@ -259,10 +258,10 @@ export function Sidebar() {
           )
         })}
 
-        {/* Section: Tools */}
+        {/* Section: Tài khoản */}
         {!sidebarCollapsed && (
           <p className="text-[10px] text-[#8D98A7] font-semibold uppercase tracking-[0.12em] px-3 pt-4 pb-2">
-            Công cụ
+            Tài khoản
           </p>
         )}
         {sidebarCollapsed && <div className="my-2 border-t border-white/6" />}
