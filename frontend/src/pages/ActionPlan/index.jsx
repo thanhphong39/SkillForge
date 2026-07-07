@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Trash2, X, Calendar, User, Save, ChevronDown, ChevronRight,
   Flag, Pencil,
@@ -645,7 +645,11 @@ export default function ActionPlanPage() {
   const mapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
 
-  const objectives = mapStore.getEffectiveFinalObjectives(b3Selected)
+  const objectives = useMemo(
+    () => mapStore.getEffectiveFinalObjectives(b3Selected),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapStore, b3Selected]
+  )
   const allKPIs = fishboneStore.getAllKPIs(objectives)
   const departments = fishboneStore.departments
 

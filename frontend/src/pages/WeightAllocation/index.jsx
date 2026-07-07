@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, RotateCcw, Save, AlertCircle, CheckCircle2, Info } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -78,8 +78,15 @@ export default function WeightAllocationPage() {
   const strategyMapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
 
-  const objectives = strategyMapStore.getEffectiveFinalObjectives(b3Selected)
-  const allKpis = fishboneStore.getAllKPIs(objectives)
+  const objectives = useMemo(
+    () => strategyMapStore.getEffectiveFinalObjectives(b3Selected),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [strategyMapStore, b3Selected]
+  )
+  const allKpis = useMemo(
+    () => fishboneStore.getAllKPIs(objectives),
+    [fishboneStore, objectives]
+  )
 
   // Load weight tree from backend on mount
   useEffect(() => {

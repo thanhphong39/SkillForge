@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ChevronDown, AlertCircle, Check, Edit3 } from 'lucide-react'
 import clsx from 'clsx'
@@ -169,7 +169,11 @@ export default function KPISetupPage() {
   const [expandedObjs, setExpandedObjs] = useState({})
   const [errors, setErrors] = useState([])
 
-  const objectives = mapStore.getEffectiveFinalObjectives(b3Selected)
+  const objectives = useMemo(
+    () => mapStore.getEffectiveFinalObjectives(b3Selected),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapStore, b3Selected]
+  )
   const allKPIs = fishboneStore.getAllKPIs(objectives)
   const { departments } = fishboneStore
 

@@ -9,7 +9,7 @@ const strategyMapService = {
   createObjective: (strategyMapId, data) =>
     api.post(`/strategy-maps/${strategyMapId}/objectives`, data),
   // data: { selectedStrategyId, name, description?, perspectiveCode, displayOrder? }
-  // perspectiveCode: 'FINANCIAL' | 'CUSTOMER' | 'INTERNAL_PROCESS' | 'LEARNING_GROWTH'
+  // perspectiveCode: 'FINANCIAL' | 'CUSTOMER' | 'INTERNAL_PROCESS' | 'LEARNING_AND_GROWTH'
 
   updateObjective: (objectiveId, data) =>
     api.put(`/strategic-objectives/${objectiveId}`, data),

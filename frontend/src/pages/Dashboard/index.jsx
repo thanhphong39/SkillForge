@@ -476,7 +476,11 @@ export default function DashboardPage() {
     if (strategyId) fetchSteps(strategyId)
   }, [strategyId])
 
-  const objectives = strategyMapStore.getEffectiveFinalObjectives(b3Selected)
+  const objectives = useMemo(
+    () => strategyMapStore.getEffectiveFinalObjectives(b3Selected),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [strategyMapStore, b3Selected]
+  )
   const allKpis = fishboneStore.getAllKPIs(objectives)
   const departments = fishboneStore.departments
 

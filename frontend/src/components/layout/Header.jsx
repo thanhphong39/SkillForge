@@ -29,6 +29,11 @@ function useNotifications() {
   const strategyMapStore = useStrategyMapStore()
   const { b3Selected } = useSWOTStore()
 
+  // Stabilize objectives/kpis so they don't recreate on every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const objectives = useMemo(() => strategyMapStore.getEffectiveFinalObjectives(b3Selected), [strategyMapStore, b3Selected])
+  const allKpis = useMemo(() => fishboneStore.getAllKPIs(objectives), [fishboneStore, objectives])
+
   return useMemo(() => {
     const notes = []
     const activeStep = Object.entries(steps).find(([, s]) => s.status === 'active')
@@ -64,8 +69,6 @@ function useNotifications() {
     const latestReports = [...kpiReports]
       .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt)).slice(0, 2)
     latestReports.forEach((r) => {
-      const objectives = strategyMapStore.getEffectiveFinalObjectives(b3Selected)
-      const allKpis = fishboneStore.getAllKPIs(objectives)
       const kpi = allKpis.find((k) => k.id === r.kpiId)
       notes.push({
         id: `report-${r.id}`, type: 'success', icon: CheckCircle2,
@@ -87,7 +90,7 @@ function useNotifications() {
       })
     })
     return notes
-  }, [steps, tasks, actionPlans, kpiReports, perspectiveWeights, b3Selected])
+  }, [steps, tasks, actionPlans, kpiReports, perspectiveWeights, b3Selected, allKpis])
 }
 
 const TYPE_STYLE = {

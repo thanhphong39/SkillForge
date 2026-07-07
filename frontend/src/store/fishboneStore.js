@@ -116,7 +116,9 @@ export const useFishboneStore = create((set, get) => ({
       }
     })
 
-    if (strategyId && participationId) {
+    // Only call API if participationId is a real backend UUID (not a temp-xxx fallback)
+    const isRealId = participationId && !String(participationId).startsWith('temp-')
+    if (strategyId && isRealId) {
       try {
         const kpi = await fishboneService.createDepartmentKpi({
           bscStrategyId: strategyId,
@@ -143,7 +145,7 @@ export const useFishboneStore = create((set, get) => ({
           }
         })
       } catch (e) {
-        // Rollback
+        // Rollback on error
         set((state) => {
           const deptKPI = state.deptKPIs[deptId] ?? {}
           return {
@@ -157,7 +159,23 @@ export const useFishboneStore = create((set, get) => ({
             error: e.message,
           }
         })
+        console.error('createDepartmentKpi failed:', e)
       }
+    } else if (strategyId && !isRealId) {
+      // participation not yet synced to backend — rollback optimistic add
+      set((state) => {
+        const deptKPI = state.deptKPIs[deptId] ?? {}
+        return {
+          deptKPIs: {
+            ...state.deptKPIs,
+            [deptId]: {
+              ...deptKPI,
+              [objectiveId]: (deptKPI[objectiveId] ?? []).filter((k) => k.id !== tempId),
+            },
+          },
+          error: 'Phòng ban chưa đăng ký tham gia thành công. Vui lòng thử lại.',
+        }
+      })
     }
   },
 
@@ -177,8 +195,11 @@ export const useFishboneStore = create((set, get) => ({
         },
       }
     })
+    // Skip API call if kpiId or participationId are still temporary
+    if (String(kpiId).startsWith('temp-')) return
     const { strategyId } = useBscContextStore.getState()
     const participationId = (get().participations[deptId] ?? {})[objectiveId]
+    if (!participationId || String(participationId).startsWith('temp-')) return
     fishboneService
       .updateDepartmentKpi(kpiId, {
         bscStrategyId: strategyId,

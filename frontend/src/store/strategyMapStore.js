@@ -383,6 +383,12 @@ export const useStrategyMapStore = create((set, get) => ({
     const errs = get().validate(b3Selected)
     if (errs.length > 0) return errs
 
+    // Guard: ensure all objectives have real backend IDs (not temp-xxx)
+    const hasTempIds = b3Selected.some((sid) =>
+      (get().strategyObjectives[sid] ?? []).some((o) => String(o.id).startsWith('temp-'))
+    )
+    if (hasTempIds) return ['Một số mục tiêu chưa được lưu thành công lên server. Vui lòng thử thêm lại các mục tiêu bị lỗi.']
+
     set({ saving: true, error: null })
     try {
       if (b3Selected.length === 1) {
@@ -396,8 +402,11 @@ export const useStrategyMapStore = create((set, get) => ({
           name: fo.name,
           description: fo.description || '',
           perspectiveCode: fo.perspective,
-          sourceType: fo.type === 'MERGED' ? 'MERGED' : fo.type === 'MANUAL_EDITED' ? 'MANUAL_EDITED' : 'ORIGINAL',
-          sourceObjectiveIds: fo.sourceIds || [],
+          sourceType:
+            fo.type === 'MERGED' ? 'MERGED'
+            : fo.type === 'MANUAL_EDITED' ? 'MANUAL_EDITED'
+            : 'ORIGINAL',
+          sourceObjectiveIds: (fo.sourceIds ?? []).filter((id) => id && !String(id).startsWith('temp-')),
           displayOrder: idx,
         }))
 

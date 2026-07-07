@@ -401,7 +401,11 @@ export default function PerspectivesPage() {
     // Create strategy maps for any selected strategy that doesn't have one yet
     // (covers the case where B4 is opened for the first time — fetchFromBackend found nothing)
     const missing = b3Selected.filter((sid) => !mapStore.strategyMapIds[sid])
-    if (missing.length > 0) mapStore.initForStrategies(missing)
+    if (missing.length > 0) {
+      mapStore.initForStrategies(missing).then(() => {
+        if (mapStore.error) toast.error('Khởi tạo bản đồ chiến lược thất bại. Vui lòng tải lại trang.')
+      })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b3Selected.join(',')])
 

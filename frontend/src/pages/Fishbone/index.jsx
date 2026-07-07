@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Plus, X, Edit3, Trash2, AlertCircle, Eye, Users, Check } from 'lucide-react'
 import clsx from 'clsx'
@@ -225,7 +225,11 @@ export default function FishbonePage() {
   const [completing, setCompleting] = useState(false)
 
   const { viewAs, setViewAs, currentDeptId, setCurrentDept, departments, loadDepartments } = fishboneStore
-  const objectives = mapStore.getEffectiveFinalObjectives(b3Selected)
+  const objectives = useMemo(
+    () => mapStore.getEffectiveFinalObjectives(b3Selected),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapStore, b3Selected]
+  )
   const currentDept = departments.find((d) => d.id === currentDeptId) ?? departments[0]
 
   const allKPIs = fishboneStore.getAllKPIs(objectives)

@@ -505,10 +505,12 @@ export default function AssessmentPage() {
     if (!strategyId && !ctxLoading) {
       init()
     }
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategyId, ctxLoading])
 
   useEffect(() => {
     if (strategyId) fetch(strategyId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategyId])
 
   const handleComplete = async () => {
