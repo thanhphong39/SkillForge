@@ -4,7 +4,7 @@ import { Toaster } from '../ui/toast.jsx'
 import {
   Building2, Users, LayoutGrid, Settings, Calendar,
   ChevronLeft, ChevronRight, LayoutDashboard,
-  LogOut, User, ChevronDown, Shield,
+  LogOut, User, ChevronDown, Shield, AlertTriangle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAdminAuthStore } from '../../store/adminAuthStore.js'
@@ -97,7 +97,7 @@ export function AdminShell() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { admin, logout } = useAdminAuthStore()
-  const { company, init } = useAdminStore()
+  const { company, companyId, init } = useAdminStore()
 
   useEffect(() => { init() }, [])
 
@@ -201,6 +201,19 @@ export function AdminShell() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
+          {/* First-time setup banner */}
+          {!companyId && pathname !== '/company-setup' && (
+            <div
+              className="mb-4 flex items-center gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors"
+              onClick={() => navigate('/company-setup')}
+            >
+              <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+              <p className="text-sm text-amber-800 flex-1">
+                <strong>Chưa cấu hình công ty.</strong> Hệ thống cần thông tin công ty để hoạt động. Nhấn để cấu hình ngay.
+              </p>
+              <span className="text-xs font-semibold text-amber-600 underline">Cấu hình →</span>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

@@ -3,15 +3,26 @@ import { persist } from 'zustand/middleware'
 import companyService from '../services/companyService.js'
 import departmentService from '../services/departmentService.js'
 import employeeService from '../services/employeeService.js'
+import userAccountService from '../services/userAccountService.js'
 
-// Read companyId from the BSC frontend context (Zustand persist key = 'bsc-context')
-function readCompanyId() {
-  try {
-    const raw = localStorage.getItem('bsc-context')
-    return JSON.parse(raw)?.state?.companyId ?? null
-  } catch {
-    return null
-  }
+// Map FE role label → BE UserRole enum
+export const ROLE_FE_TO_BE = {
+  ceo:     'CEO',
+  admin:   'COMPANY_ADMIN',
+  manager: 'DEPARTMENT_HEAD',
+  staff:   'EMPLOYEE',
+}
+export const ROLE_BE_TO_FE = {
+  CEO:            'ceo',
+  COMPANY_ADMIN:  'admin',
+  DEPARTMENT_HEAD:'manager',
+  EMPLOYEE:       'staff',
+}
+export const ROLE_LABELS = {
+  ceo:     'Giám đốc',
+  admin:   'Quản trị viên',
+  manager: 'Trưởng phòng',
+  staff:   'Nhân viên',
 }
 
 const DEFAULT_PERIODS = [
@@ -46,11 +57,11 @@ export const useAdminStore = create(
       loading: false,
       error: null,
 
-      // Fetch company, departments and employees from backend
+      // ── Load from backend when companyId exists ─────────────────────────────
       init: async () => {
-        const companyId = readCompanyId() || get().companyId
-        if (!companyId) return
-        set({ companyId, loading: true, error: null })
+        const { companyId, loading } = get()
+        if (!companyId || loading) return
+        set({ loading: true, error: null })
         try {
           const [company, departments, employees] = await Promise.all([
             companyService.getById(companyId),
@@ -60,26 +71,31 @@ export const useAdminStore = create(
           set((s) => ({
             company: {
               ...s.company,
-              name: company.name ?? s.company.name,
-              taxCode: company.taxCode ?? s.company.taxCode,
+              // Merge BE fields (name, taxCode, industry, size) with local-only UI fields
+              name:     company.name     ?? s.company.name,
+              taxCode:  company.taxCode  ?? s.company.taxCode,
               industry: company.industry ?? s.company.industry,
-              size: company.size ?? s.company.size,
+              size:     company.size     ?? s.company.size,
             },
             departments: (departments || []).map((d) => ({
-              id: String(d.id),
-              name: d.name,
-              code: d.code,
-              color: d.color || '#3b82f6',
+              id:          String(d.id),
+              name:        d.name,
+              code:        d.code,
+              color:       d.color || '#3b82f6',
               description: d.description || '',
-              managerId: null,
+              managerId:   null,
             })),
             users: (employees || []).map((e) => ({
-              id: String(e.id),
-              name: e.fullName,
-              email: e.email,
-              title: e.positionTitle || '',
-              deptId: String(e.departmentId),
-              role: 'staff',
+              id:         String(e.id),
+              name:       e.fullName,
+              email:      e.email,
+              phone:      e.phone || '',
+              title:      e.positionTitle || '',
+              deptId:     String(e.departmentId),
+              role:       'staff',       // default; no account-status API yet
+              beRole:     null,
+              accountId:  null,
+              hasAccount: false,
             })),
             loading: false,
           }))
@@ -88,61 +104,98 @@ export const useAdminStore = create(
         }
       },
 
-      // Company — sync name/taxCode/industry/size to backend; extra UI fields stay local
-      updateCompany: async (changes) => {
-        set((s) => ({ company: { ...s.company, ...changes } }))
-        const { companyId, company } = get()
-        if (companyId) {
-          const merged = { ...company, ...changes }
-          companyService.update(companyId, {
-            name: merged.name,
-            taxCode: merged.taxCode,
-            industry: merged.industry,
-            size: merged.size,
-          }).catch(console.error)
+      // ── Create company (first-time only) ────────────────────────────────────
+      createCompany: async (data) => {
+        set({ loading: true, error: null })
+        try {
+          const created = await companyService.create({
+            name:     data.name,
+            taxCode:  data.taxCode  || null,
+            industry: data.industry || null,
+            size:     data.size     || null,
+          })
+          // Persist local-only UI fields + BE response
+          set((s) => ({
+            companyId: String(created.id),
+            company: {
+              ...s.company,
+              ...data,
+              name:     created.name,
+              taxCode:  created.taxCode  || data.taxCode  || '',
+              industry: created.industry || data.industry || '',
+              size:     created.size     || data.size     || '',
+            },
+            loading: false,
+          }))
+          return { ok: true, company: created }
+        } catch (e) {
+          set({ loading: false, error: e.message })
+          return { ok: false, error: e.message }
         }
       },
 
-      // Departments
+      // ── Update company (name/taxCode/industry/size → BE; rest stays local) ──
+      updateCompany: async (data) => {
+        const { companyId } = get()
+        // Always update local state immediately
+        set((s) => ({ company: { ...s.company, ...data } }))
+        if (!companyId) return { ok: true }
+        try {
+          await companyService.update(companyId, {
+            name:     data.name,
+            taxCode:  data.taxCode  || null,
+            industry: data.industry || null,
+            size:     data.size     || null,
+          })
+          return { ok: true }
+        } catch (e) {
+          set({ error: e.message })
+          return { ok: false, error: e.message }
+        }
+      },
+
+      // ── Departments ─────────────────────────────────────────────────────────
       addDept: async (dept) => {
         const { companyId } = get()
         if (!companyId) {
           set((s) => ({ departments: [...s.departments, { id: `local-${Date.now()}`, ...dept }] }))
-          return
+          return { ok: false, error: 'Chưa có công ty' }
         }
         try {
           const created = await departmentService.create(companyId, {
-            name: dept.name,
-            code: dept.code,
-            color: dept.color || '#3b82f6',
+            name:        dept.name,
+            code:        dept.code,
+            color:       dept.color || '#3b82f6',
             description: dept.description || '',
           })
           set((s) => ({
             departments: [
               ...s.departments,
               {
-                id: String(created.id),
-                name: created.name,
-                code: created.code,
-                color: created.color || dept.color || '#3b82f6',
+                id:          String(created.id),
+                name:        created.name,
+                code:        created.code,
+                color:       created.color || dept.color || '#3b82f6',
                 description: created.description || '',
-                managerId: dept.managerId || null,
+                managerId:   dept.managerId || null,
               },
             ],
           }))
+          return { ok: true }
         } catch (e) {
           set({ error: e.message })
+          return { ok: false, error: e.message }
         }
       },
 
       updateDept: async (id, changes) => {
         set((s) => ({ departments: s.departments.map((d) => (d.id === id ? { ...d, ...changes } : d)) }))
         const dept = get().departments.find((d) => d.id === id)
-        if (dept) {
+        if (dept && !id.startsWith('local-')) {
           departmentService.update(id, {
-            name: changes.name ?? dept.name,
-            code: changes.code ?? dept.code,
-            color: changes.color ?? dept.color,
+            name:        changes.name        ?? dept.name,
+            code:        changes.code        ?? dept.code,
+            color:       changes.color       ?? dept.color,
             description: changes.description ?? dept.description ?? '',
           }).catch(console.error)
         }
@@ -155,36 +208,64 @@ export const useAdminStore = create(
         }
       },
 
-      // Users (employees)
+      // ── Users (employees + accounts) ────────────────────────────────────────
       addUser: async (user) => {
         const { companyId } = get()
-        if (!companyId || !user.deptId) {
-          set((s) => ({ users: [...s.users, { id: `local-${Date.now()}`, ...user }] }))
-          return
+        if (!companyId) {
+          set((s) => ({ users: [...s.users, { id: `local-${Date.now()}`, ...user, hasAccount: false }] }))
+          return { ok: false, error: 'Chưa có công ty' }
+        }
+        if (!user.deptId) {
+          return { ok: false, error: 'Vui lòng chọn phòng ban' }
         }
         try {
+          // Step 1: Create employee profile
           const created = await employeeService.create(companyId, {
-            departmentId: user.deptId,
-            fullName: user.name,
-            email: user.email,
-            phone: user.phone || '',
+            departmentId:  user.deptId,
+            fullName:      user.name,
+            email:         user.email,
+            phone:         user.phone || '',
             positionTitle: user.title || '',
           })
+
+          // Step 2: Create login account
+          const beRole   = ROLE_FE_TO_BE[user.role] || 'EMPLOYEE'
+          const password = user.password?.trim() || '123456'
+          let accountId  = null
+          let hasAccount = false
+          try {
+            const account = await userAccountService.create(created.id, {
+              email:    user.email,
+              password,
+              role:     beRole,
+            })
+            accountId  = account.id ? String(account.id) : null
+            hasAccount = true
+          } catch (accErr) {
+            console.warn('[adminStore] Account creation failed:', accErr.message)
+          }
+
           set((s) => ({
             users: [
               ...s.users,
               {
-                id: String(created.id),
-                name: created.fullName,
-                email: created.email,
-                title: created.positionTitle || '',
-                deptId: String(created.departmentId),
-                role: user.role || 'staff',
+                id:         String(created.id),
+                name:       created.fullName,
+                email:      created.email,
+                phone:      created.phone || '',
+                title:      created.positionTitle || '',
+                deptId:     String(created.departmentId),
+                role:       user.role || 'staff',
+                beRole,
+                accountId,
+                hasAccount,
               },
             ],
           }))
+          return { ok: true, hasAccount }
         } catch (e) {
           set({ error: e.message })
+          return { ok: false, error: e.message }
         }
       },
 
@@ -193,10 +274,10 @@ export const useAdminStore = create(
         if (!id.startsWith('local-')) {
           const user = { ...get().users.find((u) => u.id === id), ...changes }
           employeeService.update(id, {
-            departmentId: user.deptId,
-            fullName: user.name,
-            email: user.email,
-            phone: user.phone || '',
+            departmentId:  user.deptId,
+            fullName:      user.name,
+            email:         user.email,
+            phone:         user.phone || '',
             positionTitle: user.title || '',
           }).catch(console.error)
         }
@@ -209,7 +290,7 @@ export const useAdminStore = create(
         }
       },
 
-      // Periods (local only — no backend endpoint)
+      // ── Periods (local only) ────────────────────────────────────────────────
       addPeriod: (period) =>
         set((s) => ({ periods: [...s.periods, { id: `period-${Date.now()}`, isActive: false, ...period }] })),
       updatePeriod: (id, changes) =>
@@ -224,11 +305,10 @@ export const useAdminStore = create(
     }),
     {
       name: 'skillforge-admin-store',
-      // Persist companyId so admin can reload without depending on bsc-context
       partialize: (s) => ({
-        companyId: s.companyId,
-        company: s.company,
-        periods: s.periods,
+        companyId:        s.companyId,
+        company:          s.company,
+        periods:          s.periods,
         ratingThresholds: s.ratingThresholds,
       }),
     }

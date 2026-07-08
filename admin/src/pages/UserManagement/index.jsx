@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { Pencil, Trash2, Plus, Search, Users } from 'lucide-react'
-import { useAdminStore } from '../../store/adminStore.js'
+import { Pencil, Trash2, Plus, Search, Users, ShieldCheck, ShieldOff } from 'lucide-react'
+import { useAdminStore, ROLE_LABELS } from '../../store/adminStore.js'
 import { toast } from '../../components/ui/toast.jsx'
 import { Card } from '../../components/ui/Card.jsx'
 import { Modal } from '../../components/ui/Modal.jsx'
@@ -9,10 +9,12 @@ import { Input, Select } from '../../components/ui/Input.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { Badge } from '../../components/ui/Badge.jsx'
 
+// BE roles aligned with UserRole enum
 const ROLES = [
-  { value: 'admin',   label: 'Quản trị',  color: 'red' },
-  { value: 'manager', label: 'Quản lý',   color: 'blue' },
-  { value: 'staff',   label: 'Nhân viên', color: 'slate' },
+  { value: 'ceo',     label: 'Giám đốc',       color: 'purple', beRole: 'CEO' },
+  { value: 'admin',   label: 'Quản trị viên',   color: 'red',    beRole: 'COMPANY_ADMIN' },
+  { value: 'manager', label: 'Trưởng phòng',    color: 'blue',   beRole: 'DEPARTMENT_HEAD' },
+  { value: 'staff',   label: 'Nhân viên',       color: 'slate',  beRole: 'EMPLOYEE' },
 ]
 
 function getInitials(name = '') {
@@ -58,13 +60,14 @@ export default function UserManagementPage() {
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [filterDept, setFilterDept] = useState('all')
+  const [submitting, setSubmitting] = useState(false)
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
   useEffect(() => { init() }, [])
 
   function openAdd() {
     setEditing(null)
-    reset({ role: 'staff', deptId: '' })
+    reset({ role: 'staff', deptId: '', password: '123456' })
     setOpen(true)
   }
 
@@ -75,14 +78,27 @@ export default function UserManagementPage() {
   }
 
   async function onSubmit(data) {
-    if (editing) {
-      updateUser(editing.id, data)
-      toast.success(`Đã cập nhật tài khoản "${data.name}"`)
-    } else {
-      await addUser(data)
-      toast.success(`Đã thêm người dùng "${data.name}"`)
+    setSubmitting(true)
+    try {
+      if (editing) {
+        updateUser(editing.id, data)
+        toast.success(`Đã cập nhật "${data.name}"`)
+      } else {
+        const result = await addUser(data)
+        if (result?.ok) {
+          if (result.hasAccount) {
+            toast.success(`Đã tạo "${data.name}" — tài khoản đăng nhập sẵn sàng!`)
+          } else {
+            toast.success(`Đã tạo "${data.name}" — nhưng tạo tài khoản đăng nhập thất bại`)
+          }
+        } else {
+          toast.error(result?.error || 'Lỗi tạo người dùng')
+        }
+      }
+      setOpen(false)
+    } finally {
+      setSubmitting(false)
     }
-    setOpen(false)
   }
 
   const getDeptName = (id) => departments.find((d) => d.id === id)?.name ?? '—'
@@ -92,8 +108,8 @@ export default function UserManagementPage() {
   const filtered = useMemo(() => {
     return users.filter((u) => {
       const matchSearch = !search ||
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase()) ||
+        u.name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase()) ||
         u.title?.toLowerCase().includes(search.toLowerCase())
       const matchRole = filterRole === 'all' || u.role === filterRole
       const matchDept = filterDept === 'all' || u.deptId === filterDept
@@ -108,6 +124,8 @@ export default function UserManagementPage() {
     }, {})
   }, [users])
 
+  const accountCount = useMemo(() => users.filter((u) => u.hasAccount).length, [users])
+
   return (
     <div>
       {/* Header */}
@@ -115,7 +133,7 @@ export default function UserManagementPage() {
         <div>
           <h2 className="text-xl font-bold text-slate-800">Quản lý Người dùng</h2>
           <p className="text-slate-500 text-sm mt-1">
-            {users.length} tài khoản &middot;{' '}
+            {users.length} nhân viên · {accountCount} có tài khoản đăng nhập ·{' '}
             {ROLES.map((r) => `${roleCounts[r.value] ?? 0} ${r.label}`).join(' · ')}
           </p>
         </div>
@@ -159,17 +177,18 @@ export default function UserManagementPage() {
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-left">Email</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-left">Phòng ban</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Vai trò</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Tài khoản</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-slate-400 text-sm">
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
                   <Users size={28} className="mx-auto mb-2 text-slate-300" />
                   {search || filterRole !== 'all' || filterDept !== 'all'
                     ? 'Không tìm thấy người dùng phù hợp'
-                    : 'Chưa có người dùng nào'
+                    : 'Chưa có người dùng nào. Nhấn "Thêm người dùng" để bắt đầu.'
                   }
                 </td>
               </tr>
@@ -202,6 +221,17 @@ export default function UserManagementPage() {
                   <td className="px-4 py-3 text-center">
                     <Badge color={role?.color ?? 'slate'}>{role?.label ?? u.role}</Badge>
                   </td>
+                  <td className="px-4 py-3 text-center">
+                    {u.hasAccount ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                        <ShieldCheck size={13} />Có tài khoản
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                        <ShieldOff size={13} />Chưa có
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex gap-1 justify-end">
                       <button onClick={() => openEdit(u)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded cursor-pointer">
@@ -231,11 +261,13 @@ export default function UserManagementPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? 'Sửa người dùng' : 'Thêm người dùng'}
+        title={editing ? 'Sửa người dùng' : 'Thêm người dùng & Tạo tài khoản'}
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button onClick={handleSubmit(onSubmit)}>{editing ? 'Lưu thay đổi' : 'Thêm người dùng'}</Button>
+            <Button onClick={handleSubmit(onSubmit)} disabled={submitting}>
+              {submitting ? 'Đang lưu...' : editing ? 'Lưu thay đổi' : 'Tạo tài khoản'}
+            </Button>
           </>
         }
       >
@@ -250,7 +282,7 @@ export default function UserManagementPage() {
             label="Email *"
             type="email"
             placeholder="email@company.vn"
-            {...register('email', { required: 'Bắt buộc' })}
+            {...register('email', { required: 'Bắt buộc', pattern: { value: /\S+@\S+\.\S+/, message: 'Email không hợp lệ' } })}
             error={errors.email?.message}
           />
           <Input
@@ -258,9 +290,14 @@ export default function UserManagementPage() {
             placeholder="Trưởng phòng Kinh doanh"
             {...register('title')}
           />
+          <Input
+            label="Số điện thoại"
+            placeholder="0901234567"
+            {...register('phone')}
+          />
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Phòng ban" {...register('deptId')}>
-              <option value="">-- Chưa phân công --</option>
+            <Select label="Phòng ban *" {...register('deptId', { required: 'Chọn phòng ban' })} error={errors.deptId?.message}>
+              <option value="">-- Chọn phòng ban --</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
@@ -273,15 +310,21 @@ export default function UserManagementPage() {
           </div>
           {!editing && (
             <Input
-              label="Mật khẩu mặc định"
+              label="Mật khẩu đăng nhập *"
               type="password"
-              placeholder="Mặc định: 123456"
-              {...register('password')}
+              placeholder="Tối thiểu 6 ký tự"
+              {...register('password', { required: 'Bắt buộc', minLength: { value: 6, message: 'Tối thiểu 6 ký tự' } })}
+              error={errors.password?.message}
             />
+          )}
+          {!editing && (
+            <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+              <strong>Lưu ý:</strong> Sau khi tạo, người dùng có thể đăng nhập vào hệ thống BSC tại{' '}
+              <code className="font-mono">localhost:5173</code> bằng email và mật khẩu vừa tạo.
+            </div>
           )}
         </div>
       </Modal>
     </div>
   )
 }
-
