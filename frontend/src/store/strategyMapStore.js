@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import strategyMapService from '../services/strategyMapService.js'
 import { useBscContextStore } from './bscContextStore.js'
 import { useBSCWorkflowStore } from './bscWorkflowStore.js'
+import { useSWOTStore } from './swotStore.js'
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -17,11 +18,11 @@ const PERSPECTIVE_LABELS = {
 }
 
 export const useStrategyMapStore = create((set, get) => ({
-  // strategyObjectives[selectedStrategyId] = [{id (backend UUID), name, description, perspective, order}]
+  // strategyObjectives[candidateStrategyId] = [{id (backend UUID), name, description, perspective, order}]
   strategyObjectives: {},
-  // strategyCausalLinks[selectedStrategyId] = [{id (backend UUID), sourceId, targetId}]
+  // strategyCausalLinks[candidateStrategyId] = [{id (backend UUID), sourceId, targetId}]
   strategyCausalLinks: {},
-  // Map: selectedStrategyId → strategyMapId (backend UUID)
+  // Map: candidateStrategyId → strategyMapId (backend UUID)
   strategyMapIds: {},
 
   // Final merged objectives (for 2-strategy case)
@@ -39,6 +40,9 @@ export const useStrategyMapStore = create((set, get) => ({
     const strategyId = useBscContextStore.getState().strategyId
     if (!strategyId) return
 
+    // candidateStrategyId → selectedStrategyId (UUID bảng selected_strategies)
+    const b3SelectedIds = useSWOTStore.getState().b3SelectedIds ?? {}
+
     const { strategyMapIds } = get()
     const objs = { ...get().strategyObjectives }
     const links = { ...get().strategyCausalLinks }
@@ -46,17 +50,19 @@ export const useStrategyMapStore = create((set, get) => ({
 
     set({ loading: true })
     try {
-      for (const selectedStratId of strategyIds) {
-        if (!objs[selectedStratId]) objs[selectedStratId] = []
-        if (!links[selectedStratId]) links[selectedStratId] = []
+      for (const candidateStratId of strategyIds) {
+        if (!objs[candidateStratId]) objs[candidateStratId] = []
+        if (!links[candidateStratId]) links[candidateStratId] = []
 
-        if (!newMapIds[selectedStratId]) {
+        if (!newMapIds[candidateStratId]) {
+          // selectedStrategyId (UUID bảng selected_strategies) — BE yêu cầu
+          const beSelectedStratId = b3SelectedIds[candidateStratId] ?? candidateStratId
           // Create INDIVIDUAL strategy map
           const map = await strategyMapService.createStrategyMap(strategyId, {
-            selectedStrategyId: selectedStratId,
+            selectedStrategyId: beSelectedStratId,
             mapType: 'INDIVIDUAL',
           })
-          newMapIds[selectedStratId] = map.id
+          newMapIds[candidateStratId] = map.id
         }
       }
       set({
@@ -71,19 +77,26 @@ export const useStrategyMapStore = create((set, get) => ({
   },
 
   // ── Objective CRUD ────────────────────────────────────────────────────────
-  addObjective: async (selectedStratId, { name, description = '', perspective }) => {
+  addObjective: async (candidateStratId, { name, description = '', perspective }) => {
     const { strategyMapIds } = get()
-    const strategyMapId = strategyMapIds[selectedStratId]
-    if (!strategyMapId) return
+    const strategyMapId = strategyMapIds[candidateStratId]
+    if (!strategyMapId) {
+      console.error('[strategyMapStore] No strategyMapId found for candidateStratId:', candidateStratId, '\nstrategyMapIds:', strategyMapIds)
+      return
+    }
+
+    // BE yêu cầu selectedStrategyId = UUID bảng selected_strategies
+    const b3SelectedIds = useSWOTStore.getState().b3SelectedIds ?? {}
+    const beSelectedStratId = b3SelectedIds[candidateStratId] ?? candidateStratId
 
     const tempId = `temp-${uid()}`
     // Optimistic add
     set((state) => ({
       strategyObjectives: {
         ...state.strategyObjectives,
-        [selectedStratId]: [
-          ...(state.strategyObjectives[selectedStratId] ?? []),
-          { id: tempId, name: name.trim(), description: description.trim(), perspective, order: (state.strategyObjectives[selectedStratId] ?? []).length },
+        [candidateStratId]: [
+          ...(state.strategyObjectives[candidateStratId] ?? []),
+          { id: tempId, name: name.trim(), description: description.trim(), perspective, order: (state.strategyObjectives[candidateStratId] ?? []).length },
         ],
       },
     }))
@@ -91,17 +104,17 @@ export const useStrategyMapStore = create((set, get) => ({
     try {
       // Backend CreateStrategicObjectiveRequest requires selectedStrategyId (@NotNull)
       const obj = await strategyMapService.createObjective(strategyMapId, {
-        selectedStrategyId: selectedStratId,
+        selectedStrategyId: beSelectedStratId,
         name: name.trim(),
         description: description.trim(),
         perspectiveCode: perspective,
-        displayOrder: (get().strategyObjectives[selectedStratId] ?? []).length - 1,
+        displayOrder: (get().strategyObjectives[candidateStratId] ?? []).length - 1,
       })
       // Replace tempId with real backend id
       set((state) => ({
         strategyObjectives: {
           ...state.strategyObjectives,
-          [selectedStratId]: (state.strategyObjectives[selectedStratId] ?? []).map((o) =>
+          [candidateStratId]: (state.strategyObjectives[candidateStratId] ?? []).map((o) =>
             o.id === tempId ? { ...o, id: obj.id } : o
           ),
         },
@@ -111,27 +124,30 @@ export const useStrategyMapStore = create((set, get) => ({
       set((state) => ({
         strategyObjectives: {
           ...state.strategyObjectives,
-          [selectedStratId]: (state.strategyObjectives[selectedStratId] ?? []).filter((o) => o.id !== tempId),
+          [candidateStratId]: (state.strategyObjectives[candidateStratId] ?? []).filter((o) => o.id !== tempId),
         },
         error: e.message,
       }))
     }
   },
 
-  updateObjective: async (selectedStratId, objId, updates) => {
+  updateObjective: async (candidateStratId, objId, updates) => {
     // Optimistic local update
     set((state) => ({
       strategyObjectives: {
         ...state.strategyObjectives,
-        [selectedStratId]: (state.strategyObjectives[selectedStratId] ?? []).map((o) =>
+        [candidateStratId]: (state.strategyObjectives[candidateStratId] ?? []).map((o) =>
           o.id === objId ? { ...o, ...updates } : o
         ),
       },
     }))
+    // BE yêu cầu selectedStrategyId = UUID bảng selected_strategies
+    const b3SelectedIds = useSWOTStore.getState().b3SelectedIds ?? {}
+    const beSelectedStratId = b3SelectedIds[candidateStratId] ?? candidateStratId
     // Backend UpdateStrategicObjectiveRequest requires selectedStrategyId (@NotNull)
     strategyMapService
       .updateObjective(objId, {
-        selectedStrategyId: selectedStratId,
+        selectedStrategyId: beSelectedStratId,
         name: updates.name,
         description: updates.description ?? '',
         perspectiveCode: updates.perspective,
@@ -330,16 +346,18 @@ export const useStrategyMapStore = create((set, get) => ({
       const newLinks = {}
 
       for (const indMap of (data.individualStrategyMaps ?? [])) {
-        const sid = indMap.selectedStrategyId
-        newMapIds[sid] = indMap.id
-        newObjs[sid] = (indMap.objectives ?? []).map((o) => ({
+        // BE trả về candidateStrategyId trực tiếp — dùng làm key khớp với b3Selected
+        const candidateId = indMap.candidateStrategyId ?? indMap.selectedStrategyId
+
+        newMapIds[candidateId] = indMap.id
+        newObjs[candidateId] = (indMap.objectives ?? []).map((o) => ({
           id: o.id,
           name: o.name,
           description: o.description ?? '',
           perspective: o.perspectiveCode,
           order: o.displayOrder ?? 0,
         }))
-        newLinks[sid] = (indMap.objectiveLinks ?? []).map((l) => ({
+        newLinks[candidateId] = (indMap.objectiveLinks ?? []).map((l) => ({
           id: l.id,
           sourceId: l.sourceObjectiveId,
           targetId: l.targetObjectiveId,
@@ -392,7 +410,19 @@ export const useStrategyMapStore = create((set, get) => ({
     set({ saving: true, error: null })
     try {
       if (b3Selected.length === 1) {
-        // Single strategy: objectives are already created individually via API
+        // Single strategy: BE always requires finalObjectives to be persisted via buildFinalObjectives
+        // before calling complete(). Auto-build from individual objectives (all ORIGINAL).
+        const candidateStratId = b3Selected[0]
+        const objs = get().strategyObjectives[candidateStratId] ?? []
+        const buildItems = objs.map((obj, idx) => ({
+          name: obj.name,
+          description: obj.description || '',
+          perspectiveCode: obj.perspective,
+          sourceType: 'ORIGINAL',
+          sourceObjectiveIds: [obj.id],
+          displayOrder: idx,
+        }))
+        await strategyMapService.buildFinalObjectives(strategyId, { items: buildItems })
         await strategyMapService.complete(strategyId)
       } else {
         // Two strategies: build final objectives from local merge state

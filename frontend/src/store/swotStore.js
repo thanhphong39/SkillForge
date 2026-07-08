@@ -68,8 +68,10 @@ export const useSWOTStore = create(
       strategies: [],
 
       // B3 selection
-      b3Selected: [],
+      b3Selected: [],   // [candidateStrategyId] — dùng để match với strategies[] cho UI
       b3Notes: {},
+      // Map: candidateStrategyId → selectedStrategyId (UUID bảng selected_strategies, để gọi B4 API)
+      b3SelectedIds: {},
 
       loading: false,
       saving: false,
@@ -195,17 +197,23 @@ export const useSWOTStore = create(
 
           // ── Load B3 selection ──────────────────────────────────────────────────
           let b3Selected = []
+          let b3SelectedIds = {}
           try {
             const selectionResp = await strategySelectionService.get(strategyId)
-            b3Selected = ((selectionResp?.selectedStrategies) || [])
+            const sorted = ((selectionResp?.selectedStrategies) || [])
               .sort((a, b) => (a.priorityOrder ?? 0) - (b.priorityOrder ?? 0))
-              .map((s) => s.candidateStrategyId)
-              .filter(Boolean)
+            b3Selected = sorted.map((s) => s.candidateStrategyId).filter(Boolean)
+            // Build map: candidateStrategyId → selectedStrategyId (UUID bảng selected_strategies)
+            sorted.forEach((s) => {
+              if (s.candidateStrategyId && s.selectedStrategyId) {
+                b3SelectedIds[s.candidateStrategyId] = s.selectedStrategyId
+              }
+            })
           } catch {
             // B3 not started yet — ignore
           }
 
-          set({ analysisItemsRaw, swotItemsRaw, sevenS, fiveForces, pestel, swotS, swotW, swotO, swotT, strategies, b3Selected, loading: false })
+          set({ analysisItemsRaw, swotItemsRaw, sevenS, fiveForces, pestel, swotS, swotW, swotO, swotT, strategies, b3Selected, b3SelectedIds, loading: false })
         } catch (e) {
           console.error('[swotStore] fetch failed:', e)
           set({ loading: false })
@@ -709,6 +717,7 @@ export const useSWOTStore = create(
     swotT: state.swotT,
     strategies: state.strategies,
     b3Selected: state.b3Selected,
-    b3Notes: state.b3Notes
+    b3Notes: state.b3Notes,
+    b3SelectedIds: state.b3SelectedIds
   })
 }))
