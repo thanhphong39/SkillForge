@@ -1,12 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  initialTenants, 
-  initialInvoices, 
-  initialKpis, 
-  initialBscs, 
-  initialAuditLogs 
-} from './mockData';
-import { Tenant, Invoice, KpiTemplate, BscTemplate, AuditLog } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
 import { DashboardOverview } from './pages/DashboardOverview';
@@ -15,140 +7,46 @@ import { BillingRevenue } from './pages/BillingRevenue';
 import { TemplateMasterData } from './pages/TemplateMasterData';
 import { SettingsPage } from './pages/SettingsPage';
 import { ShieldCheck, Lock, Mail } from 'lucide-react';
+import { useSystemAdmin } from './useSystemAdmin';
 
 export const App: React.FC = () => {
+  const {
+    isLoggedIn,
+    loading,
+    error,
+    tenants,
+    invoices,
+    kpis,
+    bscs,
+    auditLogs,
+    login,
+    logout,
+    handleUpdateTenantStatus,
+    handleAddTenant,
+    handleAddKpi,
+    handleAddBsc,
+  } = useSystemAdmin();
+
   // App state
   const [activeTab, setActiveTab] = useState<string>('overview');
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true); // Default logged in for easy test, can toggle
-
-  // Database states
-  const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
-  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
-  const [kpis, setKpis] = useState<KpiTemplate[]>(initialKpis);
-  const [bscs, setBscs] = useState<BscTemplate[]>(initialBscs);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(initialAuditLogs);
 
   // Login Form States
   const [loginEmail, setLoginEmail] = useState('admin@skillforge.vn');
-  const [loginPassword, setLoginPassword] = useState('••••••••');
+  const [loginPassword, setLoginPassword] = useState('Admin@123456');
   const [loginError, setLoginError] = useState('');
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginEmail === 'admin@skillforge.vn') {
-      setIsLoggedIn(true);
+    const success = await login(loginEmail, loginPassword);
+    if (success) {
       setLoginError('');
-      // Log audit
-      const newLog: AuditLog = {
-        id: `log${Date.now()}`,
-        adminName: 'Supreme Admin',
-        action: 'Đăng nhập Hệ thống',
-        target: 'Bàn làm việc Admin',
-        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        ipAddress: '127.0.0.1',
-      };
-      setAuditLogs(prev => [newLog, ...prev]);
     } else {
-      setLoginError('Tài khoản hoặc mật khẩu không chính xác!');
+      setLoginError('Tài khoản hoặc mật khẩu không chính xác hoặc lỗi kết nối!');
     }
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
-
-  // State Mutators passed to child views
-  const handleUpdateTenantStatus = (id: string, status: 'active' | 'locked') => {
-    setTenants(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-    
-    // Write audit log
-    const tenantName = tenants.find(t => t.id === id)?.name || id;
-    const newLog: AuditLog = {
-      id: `log${Date.now()}`,
-      adminName: 'Supreme Admin',
-      action: status === 'active' ? 'Mở khóa doanh nghiệp' : 'Tạm khóa doanh nghiệp',
-      target: `${tenantName} (${status})`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      ipAddress: '192.168.1.45',
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
-  };
-
-  const handleAddTenant = (newTenantData: Omit<Tenant, 'id' | 'registeredAt'>) => {
-    const newTenant: Tenant = {
-      ...newTenantData,
-      id: `t${tenants.length + 1}`,
-      registeredAt: new Date().toISOString().split('T')[0],
-    };
-    setTenants(prev => [newTenant, ...prev]);
-
-    // Create automatic invoice for initialization
-    let amount = 3500000;
-    if (newTenant.packageType === 'Growth') amount = 8500000;
-    else if (newTenant.packageType === 'Enterprise') amount = 16500000;
-
-    const newInvoice: Invoice = {
-      id: `inv${invoices.length + 1}`,
-      invoiceCode: `SKF-2026-0${invoices.length + 1}`,
-      tenantId: newTenant.id,
-      tenantName: newTenant.name,
-      packageType: newTenant.packageType,
-      cycle: 'monthly',
-      amount: amount,
-      paymentMethod: 'bank_transfer',
-      status: 'pending',
-      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
-    };
-    setInvoices(prev => [newInvoice, ...prev]);
-
-    // Write audit log
-    const newLog: AuditLog = {
-      id: `log${Date.now()}`,
-      adminName: 'Supreme Admin',
-      action: 'Khởi tạo Doanh nghiệp mới',
-      target: `${newTenant.name} (${newTenant.packageType})`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      ipAddress: '192.168.1.45',
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
-  };
-
-  const handleAddKpi = (newKpiData: Omit<KpiTemplate, 'id'>) => {
-    const newKpi: KpiTemplate = {
-      ...newKpiData,
-      id: `kpi${kpis.length + 1}`,
-    };
-    setKpis(prev => [newKpi, ...prev]);
-
-    // Write audit log
-    const newLog: AuditLog = {
-      id: `log${Date.now()}`,
-      adminName: 'Supreme Admin',
-      action: 'Thêm mới KPI thư viện',
-      target: `${newKpi.name} (${newKpi.department})`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      ipAddress: '192.168.1.45',
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
-  };
-
-  const handleAddBsc = (newBscData: Omit<BscTemplate, 'id'>) => {
-    const newBsc: BscTemplate = {
-      ...newBscData,
-      id: `bsc${bscs.length + 1}`,
-    };
-    setBscs(prev => [newBsc, ...prev]);
-
-    // Write audit log
-    const newLog: AuditLog = {
-      id: `log${Date.now()}`,
-      adminName: 'Supreme Admin',
-      action: 'Thêm mới Khung BSC mẫu',
-      target: `${newBsc.objective} (${newBsc.industry})`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      ipAddress: '192.168.1.45',
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
+    logout();
   };
 
   const getActiveTabName = () => {
@@ -164,6 +62,30 @@ export const App: React.FC = () => {
 
   // Render Subpage content based on state
   const renderTabContent = () => {
+    if (loading && tenants.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs text-slate-500 font-semibold">Đang đồng bộ dữ liệu hệ thống...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-rose-50 border border-rose-100 p-6 rounded-2xl text-rose-800 text-xs">
+          <h4 className="font-bold mb-2">Đồng bộ thất bại</h4>
+          <p className="mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl active:scale-95 transition-transform"
+          >
+            Thử lại
+          </button>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'overview':
         return <DashboardOverview tenants={tenants} invoices={invoices} />;
