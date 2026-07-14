@@ -46,6 +46,11 @@ export const useBscContextStore = create(
           return
         }
 
+        // Only CEO can create a new BSC strategy
+        if (authUser?.role !== 'CEO') {
+          return
+        }
+
         // Create a new BSC strategy for the current year
         set({ loading: true, error: null })
         try {

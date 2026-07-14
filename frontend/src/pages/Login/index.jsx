@@ -28,14 +28,23 @@ export default function LoginPage() {
       return
     }
 
-    const ok = await login(email.trim(), password)
+      const ok = await login(email.trim(), password)
     if (ok) {
-      // Init BSC context after successful login (companyId comes from JWT)
-      useBscContextStore.getState().init().then(() => {
-        const { strategyId } = useBscContextStore.getState()
-        if (strategyId) useBSCWorkflowStore.getState().fetchSteps(strategyId)
-      })
-      navigate('/dashboard', { replace: true })
+      // Init BSC context after successful login (CEO/DEPARTMENT_HEAD only)
+      const currentUser = useAuthStore.getState().user
+      if (currentUser && ['CEO', 'DEPARTMENT_HEAD'].includes(currentUser.role)) {
+        useBscContextStore.getState().init().then(() => {
+          const { strategyId } = useBscContextStore.getState()
+          if (strategyId) useBSCWorkflowStore.getState().fetchSteps(strategyId)
+        })
+      }
+      // Navigate to role-based home
+      const role = currentUser?.role
+      const dest = role === 'COMPANY_ADMIN' ? '/company-admin'
+                 : role === 'EMPLOYEE'      ? '/kanban'
+                 : role === 'DEPARTMENT_HEAD' ? '/department-head'
+                 : '/dashboard'
+      navigate(dest, { replace: true })
     }
     // on failure, authError is set by authStore and displayed below
   }
@@ -147,9 +156,17 @@ export default function LoginPage() {
 
             {/* Demo hint */}
             <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 space-y-0.5">
-              <p className="font-semibold mb-1">Tài khoản demo</p>
-              <p>CEO: <span className="font-mono">ceo@skillforge.vn</span> / <span className="font-mono">123456</span></p>
-              <p>Admin: <span className="font-mono">admin@skillforge.vn</span> / <span className="font-mono">123456</span></p>
+              <p className="font-semibold mb-1.5">Tài khoản demo</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <p>CEO: <span className="font-mono">ceo@skillforge.vn</span></p>
+                <p className="font-mono text-blue-600">123456</p>
+                <p>Trưởng phòng: <span className="font-mono">head@skillforge.vn</span></p>
+                <p className="font-mono text-blue-600">123456</p>
+                <p>Nhân viên: <span className="font-mono">emp@skillforge.vn</span></p>
+                <p className="font-mono text-blue-600">123456</p>
+                <p>Quản trị: <span className="font-mono">admin@skillforge.vn</span></p>
+                <p className="font-mono text-blue-600">123456</p>
+              </div>
             </div>
 
             {/* Submit */}

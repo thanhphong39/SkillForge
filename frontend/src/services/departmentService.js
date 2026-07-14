@@ -11,6 +11,9 @@ const departmentService = {
   update: (departmentId, data) =>
     api.put(`/departments/${departmentId}`, data),
   // data: { name?, code?, color?, description? }
+
+  delete: (departmentId) =>
+    api.delete(`/departments/${departmentId}`),
 };
 
 export default departmentService;

@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar.jsx'
 import { Header } from './Header.jsx'
 import { useBscContextStore } from '../../store/bscContextStore.js'
 import { useBSCWorkflowStore } from '../../store/bscWorkflowStore.js'
+import { useAuthStore } from '../../store/authStore.js'
 import { Toaster } from '../ui/toast.jsx'
 
 const PAGE_TITLES = {
@@ -31,13 +32,17 @@ function getTitle(pathname) {
 
 export function AppShell() {
   const { pathname } = useLocation()
+  const { user } = useAuthStore()
+  // Roles that need BSC context (CEO, DEPARTMENT_HEAD)
+  const needsBscContext = user && ['CEO', 'DEPARTMENT_HEAD'].includes(user.role)
 
   useEffect(() => {
+    if (!needsBscContext) return
     useBscContextStore.getState().init().then(() => {
       const { strategyId } = useBscContextStore.getState()
       if (strategyId) useBSCWorkflowStore.getState().fetchSteps(strategyId)
     })
-  }, [])
+  }, [needsBscContext])
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F1F5F9]">
