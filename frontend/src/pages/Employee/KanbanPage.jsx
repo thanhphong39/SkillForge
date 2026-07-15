@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import {
   Kanban, RefreshCw, Loader2, AlertCircle,
   User, Calendar, Flag, ChevronDown, CheckCircle2,
-  Clock, Play, PauseCircle, Ban, XCircle, Eye,
+  Clock, Play, Ban, XCircle, Eye,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore.js'
@@ -20,62 +20,96 @@ const COLUMNS = [
 ]
 
 const PRIORITY_META = {
-  LOW:      { label: 'Thấp',    color: '#64748b' },
+  LOW:      { label: 'Thấp',       color: '#64748b' },
   MEDIUM:   { label: 'Trung bình', color: '#d97706' },
-  HIGH:     { label: 'Cao',     color: '#ef4444' },
-  CRITICAL: { label: 'Khẩn cấp', color: '#7c3aed' },
+  HIGH:     { label: 'Cao',        color: '#ef4444' },
+  CRITICAL: { label: 'Khẩn cấp',  color: '#7c3aed' },
 }
 
-// Status transitions by role:
-// EMPLOYEE: TODO→IN_PROGRESS, IN_PROGRESS→REVIEW, REVIEW→DONE
-// DEPARTMENT_HEAD: all transitions
 const ALLOWED_NEXT = {
-  TODO:        ['IN_PROGRESS'],
-  IN_PROGRESS: ['REVIEW', 'BLOCKED'],
-  REVIEW:      ['DONE', 'IN_PROGRESS'],
-  DONE:        [],
-  BLOCKED:     ['IN_PROGRESS', 'CANCELLED'],
-  CANCELLED:   [],
+  EMPLOYEE: {
+    TODO:        ['IN_PROGRESS'],
+    IN_PROGRESS: ['REVIEW', 'BLOCKED'],
+    REVIEW:      ['DONE', 'IN_PROGRESS'],
+    DONE:        [],
+    BLOCKED:     ['IN_PROGRESS'],
+    CANCELLED:   [],
+  },
+  DEPARTMENT_HEAD: {
+    TODO:        ['IN_PROGRESS'],
+    IN_PROGRESS: ['REVIEW', 'BLOCKED'],
+    REVIEW:      ['DONE', 'IN_PROGRESS'],
+    DONE:        [],
+    BLOCKED:     ['IN_PROGRESS', 'CANCELLED'],
+    CANCELLED:   [],
+  },
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+/**
+ * Normalise KanbanResponse from backend:
+ *   { bscStrategyId, columns: [{ status: "TODO", total: 0, tasks: [] }] }
+ * into a plain map:
+ *   { TODO: [], IN_PROGRESS: [], ... }
+ */
+function normalizeKanban(raw) {
+  if (!raw || !Array.isArray(raw.columns)) return {}
+  const result = {}
+  for (const col of raw.columns) {
+    result[col.status] = col.tasks ?? []
+  }
+  return result
 }
 
 // ─── Task Card ────────────────────────────────────────────────────────────────
 function TaskCard({ task, onStatusChange, currentUserRole }) {
   const [updating, setUpdating] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
-  const nextStatuses = ALLOWED_NEXT[task.status] ?? []
-  const col = COLUMNS.find(c => c.id === task.status)
+
+  const allowedMap = ALLOWED_NEXT[currentUserRole] ?? ALLOWED_NEXT.EMPLOYEE
+  const nextStatuses = allowedMap[task.status] ?? []
   const priority = PRIORITY_META[task.priority] ?? PRIORITY_META.MEDIUM
   const canUpdate = ['EMPLOYEE', 'DEPARTMENT_HEAD'].includes(currentUserRole)
+
+  // TaskResponse uses dueDate (not endDate)
+  const dueDateDisplay = task.dueDate
+    ? new Date(task.dueDate).toLocaleDateString('vi-VN')
+    : null
 
   const handleNext = async (newStatus) => {
     setShowMenu(false)
     setUpdating(true)
     try {
+      // B8.5: PATCH /tasks/{taskId}/status  body: { newStatus }
       await api.patch(`/tasks/${task.id}/status`, { newStatus })
       onStatusChange(task.id, newStatus)
     } catch (e) {
-      console.error(e)
+      console.error('Task status update failed:', e.message)
     } finally { setUpdating(false) }
   }
 
   return (
     <div className={clsx(
-      'rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-3.5 group relative',
+      'rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-3.5 relative',
       task.status === 'BLOCKED' && 'border-red-200',
       task.status === 'DONE' && 'opacity-75',
+      task.overdue && task.status !== 'DONE' && 'border-orange-300',
     )}>
-      {/* Priority badge */}
+      {/* Priority + overdue badge */}
       <div className="flex items-center justify-between mb-2">
-        <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white"
-          style={{ background: priority.color }}
-        >{priority.label}</span>
-        {task.status === 'BLOCKED' && task.blockReason && (
-          <span className="text-[10px] text-red-600 font-medium max-w-[120px] truncate" title={task.blockReason}>
-            🚫 {task.blockReason}
-          </span>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white" style={{ background: priority.color }}>
+          {priority.label}
+        </span>
+        {task.overdue && task.status !== 'DONE' && (
+          <span className="text-[10px] text-orange-600 font-semibold">Quá hạn</span>
         )}
       </div>
+
+      {task.status === 'BLOCKED' && task.blockReason && (
+        <p className="text-[10px] text-red-600 font-medium mb-1 truncate" title={task.blockReason}>
+          🚫 {task.blockReason}
+        </p>
+      )}
 
       {/* Task name */}
       <p className="text-sm font-semibold text-[#1C2434] leading-snug mb-2">{task.name}</p>
@@ -88,10 +122,10 @@ function TaskCard({ task, onStatusChange, currentUserRole }) {
             <span className="truncate">{task.assigneeName}</span>
           </div>
         )}
-        {task.endDate && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+        {dueDateDisplay && (
+          <div className={clsx('flex items-center gap-1.5 text-xs', task.overdue && task.status !== 'DONE' ? 'text-orange-500 font-medium' : 'text-slate-500')}>
             <Calendar size={11} className="shrink-0" />
-            <span>{new Date(task.endDate).toLocaleDateString('vi-VN')}</span>
+            <span>{dueDateDisplay}</span>
           </div>
         )}
         {task.actionPlanName && (
@@ -100,9 +134,17 @@ function TaskCard({ task, onStatusChange, currentUserRole }) {
             <span className="truncate">{task.actionPlanName}</span>
           </div>
         )}
+        {task.progressPercent != null && (
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-[#3C50E0] rounded-full" style={{ width: `${task.progressPercent}%` }} />
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">{Number(task.progressPercent).toFixed(0)}%</span>
+          </div>
+        )}
       </div>
 
-      {/* Status update */}
+      {/* Status update dropdown */}
       {canUpdate && nextStatuses.length > 0 && (
         <div className="relative mt-3 pt-2.5 border-t border-slate-100">
           <button
@@ -141,7 +183,8 @@ function TaskCard({ task, onStatusChange, currentUserRole }) {
 export default function EmployeeKanbanPage() {
   const { user } = useAuthStore()
   const { strategyId } = useBscContextStore()
-  const [kanban, setKanban] = useState(null)
+  // normalizedKanban: { TODO: TaskResponse[], IN_PROGRESS: TaskResponse[], ... }
+  const [normalizedKanban, setNormalizedKanban] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -149,12 +192,15 @@ export default function EmployeeKanbanPage() {
     if (!strategyId) return
     setLoading(true); setError(null)
     try {
-      // EMPLOYEE: backend enforces SELF scope, but pass assigneeId for explicit filter
-      const params = user?.role === 'EMPLOYEE' && user?.employeeId
-        ? { assigneeId: user.employeeId }
-        : {}
-      const data = await api.get(`/bsc-strategies/${strategyId}/tasks/kanban`, { params })
-      setKanban(data)
+      // B8.6: GET /bsc-strategies/{strategyId}/tasks/kanban
+      // EMPLOYEE role: pass assigneeId so backend filters for own tasks
+      const params = {}
+      if (user?.role === 'EMPLOYEE' && user?.employeeId) {
+        params.assigneeId = user.employeeId
+      }
+      const raw = await api.get(`/bsc-strategies/${strategyId}/tasks/kanban`, { params })
+      // raw = KanbanResponse { bscStrategyId, columns: [{status, total, tasks:[TaskResponse]}] }
+      setNormalizedKanban(normalizeKanban(raw))
     } catch (e) {
       setError(e.message)
     } finally { setLoading(false) }
@@ -162,9 +208,9 @@ export default function EmployeeKanbanPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Optimistic update: move task to new column locally
+  // Optimistic local state update after PATCH
   const handleStatusChange = useCallback((taskId, newStatus) => {
-    setKanban(prev => {
+    setNormalizedKanban(prev => {
       if (!prev) return prev
       let movedTask = null
       const updated = {}
@@ -181,8 +227,9 @@ export default function EmployeeKanbanPage() {
     })
   }, [])
 
-  const totalTasks = kanban ? Object.values(kanban).flat().length : 0
-  const doneTasks = kanban?.[`DONE`]?.length ?? 0
+  const allTasks = normalizedKanban ? Object.values(normalizedKanban).flat() : []
+  const totalTasks = allTasks.length
+  const doneTasks = normalizedKanban?.['DONE']?.length ?? 0
 
   return (
     <div className="space-y-5">
@@ -231,7 +278,7 @@ export default function EmployeeKanbanPage() {
       )}
 
       {/* Loading skeleton */}
-      {loading && !kanban && (
+      {loading && !normalizedKanban && (
         <div className="flex gap-4 overflow-x-auto pb-4">
           {COLUMNS.map(col => (
             <div key={col.id} className="w-72 shrink-0 bg-white rounded-xl border border-slate-200 p-4 animate-pulse">
@@ -245,10 +292,10 @@ export default function EmployeeKanbanPage() {
       )}
 
       {/* Kanban Board */}
-      {!loading && kanban && (
+      {!loading && normalizedKanban && (
         <div className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1">
           {COLUMNS.map(col => {
-            const tasks = kanban[col.id] ?? []
+            const tasks = normalizedKanban[col.id] ?? []
             const Icon = col.icon
             return (
               <div
@@ -256,10 +303,9 @@ export default function EmployeeKanbanPage() {
                 className="w-72 shrink-0 rounded-xl border border-slate-200 flex flex-col"
                 style={{ background: col.bg }}
               >
-                {/* Column header */}
                 <div
-                  className="flex items-center gap-2 px-4 py-3 rounded-t-xl border-b border-white/60"
-                  style={{ borderBottomColor: col.color + '33' }}
+                  className="flex items-center gap-2 px-4 py-3 rounded-t-xl"
+                  style={{ borderBottom: `2px solid ${col.color}22` }}
                 >
                   <Icon size={14} style={{ color: col.color }} />
                   <span className="text-sm font-bold" style={{ color: col.color }}>{col.label}</span>
@@ -268,8 +314,6 @@ export default function EmployeeKanbanPage() {
                     style={{ background: col.color }}
                   >{tasks.length}</span>
                 </div>
-
-                {/* Cards */}
                 <div className="flex-1 p-3 space-y-3 min-h-[100px]">
                   {tasks.length === 0 ? (
                     <div className="text-center text-xs text-slate-400 py-6">Không có task</div>
@@ -297,4 +341,4 @@ export default function EmployeeKanbanPage() {
       )}
     </div>
   )
-}
+}
