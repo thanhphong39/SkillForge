@@ -389,23 +389,34 @@ export default function PerspectivesPage() {
 
   useEffect(() => {
     if (!strategyId) return
+    let isMounted = true
+
     swotStore.fetch(strategyId).then(() => {
-      mapStore.fetchFromBackend(strategyId)
+      if (!isMounted) return
+      return mapStore.fetchFromBackend(strategyId)
+    }).then(() => {
+      if (!isMounted) return
+      // Sau khi đã tải xong dữ liệu từ BE, kiểm tra xem có map nào bị thiếu không
+      const currentB3Selected = useSWOTStore.getState().b3Selected
+      const currentMapIds = useStrategyMapStore.getState().strategyMapIds
+      const missing = currentB3Selected.filter((sid) => !currentMapIds[sid])
+
+      if (missing.length > 0) {
+        useStrategyMapStore.getState().initForStrategies(missing).then(() => {
+          if (useStrategyMapStore.getState().error) {
+            toast.error('Khởi tạo bản đồ chiến lược thất bại. Vui lòng tải lại trang.')
+          }
+        })
+      }
     })
+
+    return () => { isMounted = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategyId])
 
   useEffect(() => {
     if (b3Selected.length === 0) return
     setActiveStrategyTab((prev) => prev ?? b3Selected[0])
-    // Create strategy maps for any selected strategy that doesn't have one yet
-    // (covers the case where B4 is opened for the first time — fetchFromBackend found nothing)
-    const missing = b3Selected.filter((sid) => !mapStore.strategyMapIds[sid])
-    if (missing.length > 0) {
-      mapStore.initForStrategies(missing).then(() => {
-        if (mapStore.error) toast.error('Khởi tạo bản đồ chiến lược thất bại. Vui lòng tải lại trang.')
-      })
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b3Selected.join(',')])
 

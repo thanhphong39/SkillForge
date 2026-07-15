@@ -50,6 +50,14 @@ function KPIForm({ deptId, objectiveId, onAdd, onClose }) {
 
 // ── Trưởng phòng View ─────────────────────────────────────────
 function DeptView({ dept, objectives, store }) {
+  if (!dept) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+        <p className="text-sm font-semibold text-amber-700">Chưa có dữ liệu phòng ban</p>
+      </div>
+    )
+  }
+
   const [addingKPIFor, setAddingKPIFor] = useState(null)
   const [editingKPI, setEditingKPI] = useState(null)
   const { participations, deptKPIs, toggleParticipation, addKPI, updateKPI, removeKPI } = store
@@ -220,7 +228,7 @@ export default function FishbonePage() {
   const mapStore = useStrategyMapStore()
   const fishboneStore = useFishboneStore()
   const navigate = useNavigate()
-  const { strategyId } = useBscContextStore()
+  const { strategyId, companyId } = useBscContextStore()
   const [errors, setErrors] = useState([])
   const [completing, setCompleting] = useState(false)
 
@@ -238,7 +246,7 @@ export default function FishbonePage() {
   )
 
   useEffect(() => {
-    if (!strategyId) return
+    if (!strategyId || !companyId) return
     loadDepartments()
     swotStore.fetch(strategyId).then(() => {
       mapStore.fetchFromBackend(strategyId).then(() => {
@@ -246,7 +254,7 @@ export default function FishbonePage() {
       })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strategyId])
+  }, [strategyId, companyId])
 
   const handleComplete = async () => {
     if (objectives.length === 0) {

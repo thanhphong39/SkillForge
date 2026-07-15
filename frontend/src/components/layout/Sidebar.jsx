@@ -40,6 +40,7 @@ const CEO_STEPS = [
   { step: 'B5', to: '/fishbone',             icon: GitBranch,     label: 'Mô hình Xương cá' },
   { step: 'B6', to: '/weight-allocation',    icon: Scale,         label: 'Phân bổ Tỉ trọng' },
   { step: 'B7', to: '/kpi-setup',            icon: ListChecks,    label: 'Đo lường & Chỉ tiêu' },
+  { step: 'B8', to: '/action-plan',          icon: Rocket,        label: 'Thực thi & Giám sát' },
 ]
 
 const DEPT_HEAD_NAV = [

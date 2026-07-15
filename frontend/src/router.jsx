@@ -132,9 +132,9 @@ export const router = createBrowserRouter([
             ],
           },
 
-          // ── B8 Action Plan — DEPARTMENT_HEAD only ──────────────────────
+          // ── B8 Action Plan — DEPARTMENT_HEAD & CEO ──────────────────────
           {
-            element: <RequireRole roles={['DEPARTMENT_HEAD']} />,
+            element: <RequireRole roles={['DEPARTMENT_HEAD', 'CEO']} />,
             children: [
               { path: 'action-plan', element: <ActionPlanPage /> },
             ],

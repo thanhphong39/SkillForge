@@ -3,6 +3,7 @@ import strategyMapService from '../services/strategyMapService.js'
 import { useBscContextStore } from './bscContextStore.js'
 import { useBSCWorkflowStore } from './bscWorkflowStore.js'
 import { useSWOTStore } from './swotStore.js'
+import { toast } from '../components/ui/toast.jsx'
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -128,6 +129,7 @@ export const useStrategyMapStore = create((set, get) => ({
         },
         error: e.message,
       }))
+      toast.error(e.message || 'Lỗi khi thêm mục tiêu')
     }
   },
 
@@ -153,7 +155,10 @@ export const useStrategyMapStore = create((set, get) => ({
         perspectiveCode: updates.perspective,
         displayOrder: updates.order,
       })
-      .catch(console.error)
+      .catch((e) => {
+        console.error(e)
+        toast.error(e.message || 'Lỗi khi cập nhật mục tiêu')
+      })
   },
 
   removeObjective: async (selectedStratId, objId) => {
@@ -170,7 +175,10 @@ export const useStrategyMapStore = create((set, get) => ({
         ),
       },
     }))
-    strategyMapService.deleteObjective(objId).catch(console.error)
+    strategyMapService.deleteObjective(objId).catch((e) => {
+      console.error(e)
+      toast.error(e.message || 'Lỗi khi xóa mục tiêu')
+    })
   },
 
   // ── Causal Links ──────────────────────────────────────────────────────────
@@ -212,6 +220,7 @@ export const useStrategyMapStore = create((set, get) => ({
         },
         error: e.message,
       }))
+      toast.error(e.message || 'Lỗi khi thêm liên kết')
     }
   },
 
@@ -222,7 +231,10 @@ export const useStrategyMapStore = create((set, get) => ({
         [selectedStratId]: (state.strategyCausalLinks[selectedStratId] ?? []).filter((l) => l.id !== linkId),
       },
     }))
-    strategyMapService.deleteObjectiveLink(linkId).catch(console.error)
+    strategyMapService.deleteObjectiveLink(linkId).catch((e) => {
+      console.error(e)
+      toast.error(e.message || 'Lỗi khi xóa liên kết')
+    })
   },
 
   // ── Merge step (for 2-strategy case) ─────────────────────────────────────

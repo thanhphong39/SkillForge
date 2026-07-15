@@ -71,24 +71,40 @@ export const useFishboneStore = create((set, get) => ({
       }
     } else {
       // Join participation
-      let participationId = uid()
+      const tempId = `temp-${uid()}`
+      set((state) => ({
+        participations: {
+          ...state.participations,
+          [deptId]: { ...(state.participations[deptId] ?? {}), [objectiveId]: tempId },
+        },
+      }))
       if (strategyId) {
         try {
           const resp = await fishboneService.joinFinalObjective(strategyId, {
             finalStrategicObjectiveId: objectiveId,
             departmentId: deptId,
           })
-          if (resp?.id) participationId = resp.id
+          if (resp?.id) {
+            set((state) => ({
+              participations: {
+                ...state.participations,
+                [deptId]: { ...(state.participations[deptId] ?? {}), [objectiveId]: resp.id },
+              },
+            }))
+          }
         } catch (e) {
           console.error('joinFinalObjective failed:', e)
+          set((state) => ({
+            participations: {
+              ...state.participations,
+              [deptId]: { ...state.participations[deptId], [objectiveId]: null },
+            },
+            error: e.message || 'Lỗi khi tham gia mục tiêu',
+          }))
+          const { toast } = await import('../components/ui/toast.jsx')
+          toast.error(e.message || 'Lỗi khi tham gia mục tiêu')
         }
       }
-      set((state) => ({
-        participations: {
-          ...state.participations,
-          [deptId]: { ...(state.participations[deptId] ?? {}), [objectiveId]: participationId },
-        },
-      }))
     }
   },
 
@@ -160,6 +176,8 @@ export const useFishboneStore = create((set, get) => ({
           }
         })
         console.error('createDepartmentKpi failed:', e)
+        const { toast } = await import('../components/ui/toast.jsx')
+        toast.error(e.message || 'Lỗi khi tạo KPI nhỏ')
       }
     } else if (strategyId && !isRealId) {
       // participation not yet synced to backend — rollback optimistic add
@@ -210,7 +228,11 @@ export const useFishboneStore = create((set, get) => ({
         description: updates.description ?? '',
         displayOrder: updates.displayOrder,
       })
-      .catch(console.error)
+      .catch(async (e) => {
+        console.error(e)
+        const { toast } = await import('../components/ui/toast.jsx')
+        toast.error(e.message || 'Lỗi khi cập nhật KPI nhỏ')
+      })
   },
 
   removeKPI: async (deptId, objectiveId, kpiId) => {
@@ -226,7 +248,11 @@ export const useFishboneStore = create((set, get) => ({
         },
       }
     })
-    fishboneService.deleteDepartmentKpi(kpiId).catch(console.error)
+    fishboneService.deleteDepartmentKpi(kpiId).catch(async (e) => {
+      console.error(e)
+      const { toast } = await import('../components/ui/toast.jsx')
+      toast.error(e.message || 'Lỗi khi xóa KPI nhỏ')
+    })
   },
 
   // ── Read helpers ──────────────────────────────────────────────────────────
