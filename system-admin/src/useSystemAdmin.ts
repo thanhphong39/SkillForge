@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Tenant, Invoice, KpiTemplate, BscTemplate, AuditLog } from './types';
+import { Tenant, Invoice, KpiTemplate, BscTemplate, AuditLog, CustomLead } from './types';
 import { systemAdminService, PlanDto } from './services/systemAdminService';
 
 export const useSystemAdmin = () => {
@@ -14,6 +14,7 @@ export const useSystemAdmin = () => {
   const [bscs, setBscs] = useState<BscTemplate[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [plans, setPlans] = useState<PlanDto[]>([]);
+  const [customLeads, setCustomLeads] = useState<CustomLead[]>([]);
 
   // Check login on mount
   useEffect(() => {
@@ -35,13 +36,14 @@ export const useSystemAdmin = () => {
     setLoading(true);
     setError(null);
     try {
-      const [tenantsRes, invoicesRes, kpisRes, bscsRes, auditLogsRes, plansRes] = await Promise.all([
+      const [tenantsRes, invoicesRes, kpisRes, bscsRes, auditLogsRes, plansRes, customLeadsRes] = await Promise.all([
         systemAdminService.getTenants(),
         systemAdminService.getInvoices(),
         systemAdminService.getKpis(),
         systemAdminService.getBscs(),
         systemAdminService.getAuditLogs(),
-        systemAdminService.getPlans()
+        systemAdminService.getPlans(),
+        systemAdminService.getCustomLeads()
       ]);
 
       setTenants(tenantsRes);
@@ -50,6 +52,7 @@ export const useSystemAdmin = () => {
       setBscs(bscsRes);
       setAuditLogs(auditLogsRes);
       setPlans(plansRes);
+      setCustomLeads(customLeadsRes);
     } catch (err: any) {
       console.error('Failed to load system data:', err);
       setError(err?.message || 'Không thể đồng bộ dữ liệu hệ thống.');
@@ -169,6 +172,37 @@ export const useSystemAdmin = () => {
     }
   };
 
+  const handleUpdateCustomLeadStatus = async (id: string, status: string, dealAmount?: number) => {
+    try {
+      const updated = await systemAdminService.updateCustomLeadStatus(id, status, dealAmount);
+      setCustomLeads(prev => prev.map(lead => lead.id === id ? updated : lead));
+      
+      // Also refresh invoices and tenants so Overview & Revenue statistics update automatically
+      const [updatedInvoices, updatedTenants, updatedLogs] = await Promise.all([
+        systemAdminService.getInvoices(),
+        systemAdminService.getTenants(),
+        systemAdminService.getAuditLogs()
+      ]);
+      setInvoices(updatedInvoices);
+      setTenants(updatedTenants);
+      setAuditLogs(updatedLogs);
+    } catch (err: any) {
+      alert('Không thể cập nhật trạng thái yêu cầu tư vấn: ' + err.message);
+    }
+  };
+
+  const handleDeleteCustomLead = async (id: string) => {
+    if (!window.confirm('Bạn có chắc muốn xóa yêu cầu tư vấn này?')) return;
+    try {
+      await systemAdminService.deleteCustomLead(id);
+      setCustomLeads(prev => prev.filter(lead => lead.id !== id));
+      const updatedLogs = await systemAdminService.getAuditLogs();
+      setAuditLogs(updatedLogs);
+    } catch (err: any) {
+      alert('Không thể xóa yêu cầu tư vấn: ' + err.message);
+    }
+  };
+
   return {
     isLoggedIn,
     loading,
@@ -179,6 +213,7 @@ export const useSystemAdmin = () => {
     bscs,
     auditLogs,
     plans,
+    customLeads,
     login,
     logout,
     fetchAllData,
@@ -186,12 +221,13 @@ export const useSystemAdmin = () => {
     handleAddTenant,
     handleAddKpi,
     handleAddBsc,
-    handleUpdateInvoiceStatus
+    handleUpdateInvoiceStatus,
+    handleUpdateCustomLeadStatus,
+    handleDeleteCustomLead
   };
 };
 
-function mapPackageTypeToPlanCode(pkg: 'Starter' | 'Growth' | 'Enterprise'): string {
-  if (pkg === 'Growth') return 'GROWTH';
-  if (pkg === 'Enterprise') return 'ENTERPRISE';
+function mapPackageTypeToPlanCode(pkg: Tenant['packageType']): string {
+  if (pkg === 'Custom' || pkg === 'Enterprise' || pkg === 'Growth') return 'CUSTOM';
   return 'STARTER';
 }

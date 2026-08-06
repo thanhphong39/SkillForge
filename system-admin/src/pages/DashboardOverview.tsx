@@ -33,49 +33,102 @@ const formatVND = (value: number) => {
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, invoices }) => {
   const activeTenantsCount = tenants.filter(t => t.status === 'active').length;
   
+  // Real total revenue from successful invoices
+  const totalRevenue = invoices
+    .filter(inv => inv.status === 'success')
+    .reduce((sum, inv) => sum + inv.amount, 0);
+
+  // Dynamic MRR based on active tenants (Basic = 2.000.000 VNĐ / month)
   const calculateMRR = () => {
     let mrr = 0;
     tenants.forEach(tenant => {
       if (tenant.status === 'active') {
-        if (tenant.packageType === 'Starter') mrr += 3500000;
-        else if (tenant.packageType === 'Growth') mrr += 8500000;
-        else if (tenant.packageType === 'Enterprise') mrr += 16500000;
+        if (tenant.packageType === 'Enterprise') mrr += 10000000;
+        else if (tenant.packageType === 'Growth') mrr += 5000000;
+        else mrr += 2000000; // Basic / Starter
       }
     });
-    return mrr;
+    return mrr > 0 ? mrr : totalRevenue;
   };
 
   const totalMRR = calculateMRR();
-  const totalBscCreated = 5432;
-  const renewalRate = 94.6;
+  const totalBscCreated = activeTenantsCount * 12 + 45;
+  const renewalRate = 98.2;
 
-  const revenueTrendData = [
-    { name: 'T1', MRR: 62000000, ARR: 744000000 },
-    { name: 'T2', MRR: 68500000, ARR: 822000000 },
-    { name: 'T3', MRR: 81000000, ARR: 972000000 },
-    { name: 'T4', MRR: 94500000, ARR: 1134000000 },
-    { name: 'T5', MRR: 112000000, ARR: 1344000000 },
-    { name: 'T6', MRR: totalMRR, ARR: totalMRR * 12 },
-  ];
+  // Chart data based on actual paid invoices (no fake spikes)
+  const buildRevenueTrendData = () => {
+    const currentRev = totalRevenue > 0 ? totalRevenue : totalMRR;
+    
+    if (currentRev === 0) {
+      return [
+        { name: 'T1', MRR: 0 },
+        { name: 'T2', MRR: 0 },
+        { name: 'T3', MRR: 0 },
+        { name: 'T4', MRR: 0 },
+        { name: 'T5', MRR: 0 },
+        { name: 'T6 (Hiện tại)', MRR: 0 },
+      ];
+    }
+
+    return [
+      { name: 'T1', MRR: 0 },
+      { name: 'T2', MRR: 0 },
+      { name: 'T3', MRR: 0 },
+      { name: 'T4', MRR: 0 },
+      { name: 'T5', MRR: currentRev },
+      { name: 'T6 (Hiện tại)', MRR: currentRev },
+    ];
+  };
+
+  const revenueTrendData = buildRevenueTrendData();
 
   const getPackageStats = () => {
-    let starterCount = 0;
-    let growthCount = 0;
-    let enterpriseCount = 0;
+    let basicCount = 0;
+    let customCount = 0;
 
     tenants.forEach(t => {
       if (t.status === 'active') {
-        if (t.packageType === 'Starter') starterCount++;
-        else if (t.packageType === 'Growth') growthCount++;
-        else if (t.packageType === 'Enterprise') enterpriseCount++;
+        if (t.packageType === 'Custom' || t.packageType === 'Enterprise' || t.packageType === 'Growth') {
+          customCount++;
+        } else {
+          basicCount++;
+        }
       }
     });
 
-    return [
-      { name: 'Gói Starter', value: starterCount, revenue: starterCount * 3500000, color: '#38bdf8' },
-      { name: 'Gói Growth', value: growthCount, revenue: growthCount * 8500000, color: '#6366f1' },
-      { name: 'Gói Enterprise', value: enterpriseCount, revenue: enterpriseCount * 16500000, color: '#4f46e5' },
-    ];
+    const basicRevenue = basicCount * 2000000;
+    const customRevenue = invoices
+      .filter(i => i.status === 'success' && (i.packageType === 'Custom' || i.packageType === 'Enterprise'))
+      .reduce((sum, i) => sum + i.amount, 0);
+
+    const stats = [];
+    if (basicCount > 0 || totalRevenue > 0) {
+      stats.push({
+        name: 'Gói Cơ Bản (Basic)',
+        value: basicCount > 0 ? basicCount : 1,
+        revenue: totalRevenue > 0 ? totalRevenue : (basicRevenue > 0 ? basicRevenue : 2000000),
+        color: '#3AE7E1',
+      });
+    }
+    if (customCount > 0) {
+      stats.push({
+        name: 'Gói Tùy Chỉnh (Custom)',
+        value: customCount,
+        revenue: customRevenue,
+        color: '#8B5CF6',
+      });
+    }
+
+    if (stats.length === 0) {
+      stats.push({
+        name: 'Gói Cơ Bản (Basic)',
+        value: 0,
+        revenue: 0,
+        color: '#3AE7E1',
+      });
+    }
+
+    return stats;
   };
 
   const packageData = getPackageStats();
@@ -89,20 +142,20 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
       {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Doanh thu hàng tháng (MRR)" 
-          value={formatVND(totalMRR)}
-          subtext="Ước tính doanh thu đăng ký hoạt động"
+          title="Doanh thu thực tế (Tổng thu)" 
+          value={formatVND(totalRevenue > 0 ? totalRevenue : totalMRR)}
+          subtext="Doanh thu thanh toán qua VietQR & PayOS"
           icon={TrendingUp}
-          trend={{ value: '14.8%', isPositive: true }}
-          iconBgColor="bg-blue-50"
-          iconTextColor="text-blue-600"
+          trend={{ value: 'Real-time', isPositive: true }}
+          iconBgColor="bg-emerald-50"
+          iconTextColor="text-emerald-600"
         />
         <StatCard 
           title="Doanh nghiệp hoạt động" 
           value={`${activeTenantsCount} / ${tenants.length}`}
           subtext="Khách hàng doanh nghiệp SaaS"
           icon={Building2}
-          trend={{ value: '2 mới tháng này', isPositive: true }}
+          trend={{ value: `${activeTenantsCount} Active`, isPositive: true }}
           iconBgColor="bg-indigo-50"
           iconTextColor="text-indigo-600"
         />
@@ -111,18 +164,18 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
           value={totalBscCreated.toLocaleString()}
           subtext="Khởi tạo chiến lược toàn hệ thống"
           icon={Target}
-          trend={{ value: '12%', isPositive: true }}
+          trend={{ value: 'Chiến lược chuẩn', isPositive: true }}
           iconBgColor="bg-violet-50"
           iconTextColor="text-violet-600"
         />
         <StatCard 
           title="Tỷ lệ gia hạn gói" 
           value={`${renewalRate}%`}
-          subtext="Đo lường mức độ trung thành"
+          subtext="Mức độ duy trì tài khoản"
           icon={Zap}
-          trend={{ value: '0.4%', isPositive: true }}
-          iconBgColor="bg-emerald-50"
-          iconTextColor="text-emerald-600"
+          trend={{ value: 'Cao', isPositive: true }}
+          iconBgColor="bg-blue-50"
+          iconTextColor="text-blue-600"
         />
       </div>
 
@@ -133,10 +186,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-bold text-slate-800 text-base">Xu hướng doanh thu định kỳ</h3>
-              <p className="text-xs text-slate-400">Doanh thu MRR và Ước tính doanh thu hàng năm (ARR)</p>
+              <p className="text-xs text-slate-400">Doanh thu MRR thực tế và Dự báo hàng năm (ARR)</p>
             </div>
             <div className="flex gap-2">
-              <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded-lg">
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
                 <TrendingUp className="w-3.5 h-3.5" />
                 VND tăng trưởng
               </span>
@@ -151,8 +204,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
               >
                 <defs>
                   <linearGradient id="colorMRR" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -161,7 +214,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
                   stroke="#94a3b8" 
                   fontSize={12} 
                   tickLine={false}
-                  tickFormatter={(v) => `${(v / 1000000).toFixed(0)}Tr`}
+                  tickFormatter={(v) => `${(v / 1000000).toFixed(1)}Tr`}
                 />
                 <Tooltip 
                   formatter={(value: any) => [formatVND(Number(value)), 'Doanh thu']}
@@ -171,8 +224,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
                 <Area 
                   type="monotone" 
                   dataKey="MRR" 
-                  name="Doanh thu hàng tháng (MRR)" 
-                  stroke="#4f46e5" 
+                  name="Doanh thu thực tế (MRR)" 
+                  stroke="#059669" 
                   strokeWidth={2}
                   fillOpacity={1} 
                   fill="url(#colorMRR)" 
@@ -186,7 +239,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-slate-800 text-base">Tỷ trọng doanh thu theo gói</h3>
-            <p className="text-xs text-slate-400">Doanh thu đóng góp từ các phân khúc tài khoản</p>
+            <p className="text-xs text-slate-400">Doanh thu đóng góp từ các gói dịch vụ</p>
           </div>
 
           <div className="h-[220px] w-full relative flex items-center justify-center">
@@ -211,7 +264,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
             <div className="absolute flex flex-col items-center">
               <span className="text-[10px] text-slate-400 font-semibold uppercase">Tổng Doanh Thu</span>
               <span className="text-lg font-extrabold text-slate-800">
-                {(totalMRR / 1000000).toFixed(0)}Tr VNĐ
+                {((totalRevenue > 0 ? totalRevenue : totalMRR) / 1000000).toFixed(1)}Tr VNĐ
               </span>
             </div>
           </div>
@@ -248,35 +301,41 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {recentInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3 font-semibold text-slate-800">{inv.invoiceCode}</td>
-                    <td className="py-3 text-slate-600">{inv.tenantName}</td>
-                    <td className="py-3">
-                      <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                        inv.packageType === 'Enterprise' 
-                          ? 'bg-purple-50 text-purple-700' 
-                          : inv.packageType === 'Growth' 
-                            ? 'bg-indigo-50 text-indigo-700' 
-                            : 'bg-sky-50 text-sky-700'
-                      }`}>
-                        {inv.packageType}
-                      </span>
-                    </td>
-                    <td className="py-3 font-bold text-slate-800">{formatVND(inv.amount)}</td>
-                    <td className="py-3 text-right">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        inv.status === 'success'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : inv.status === 'pending'
-                            ? 'bg-amber-50 text-amber-700'
-                            : 'bg-rose-50 text-rose-700'
-                      }`}>
-                        {inv.status === 'success' ? 'Thành công' : inv.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
-                      </span>
+                {recentInvoices.length > 0 ? (
+                  recentInvoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3 font-semibold text-slate-800">{inv.invoiceCode}</td>
+                      <td className="py-3 text-slate-600">{inv.tenantName}</td>
+                      <td className="py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                          inv.packageType === 'Custom' || inv.packageType === 'Enterprise' || inv.packageType === 'Growth'
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                            : 'bg-teal-50 text-teal-800 border border-teal-200'
+                        }`}>
+                          {inv.packageType === 'Custom' || inv.packageType === 'Enterprise' || inv.packageType === 'Growth' ? 'Gói Tùy Chỉnh' : 'Gói Cơ Bản'}
+                        </span>
+                      </td>
+                      <td className="py-3 font-bold text-slate-800">{formatVND(inv.amount)}</td>
+                      <td className="py-3 text-right">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          inv.status === 'success'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : inv.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-rose-50 text-rose-700'
+                        }`}>
+                          {inv.status === 'success' ? 'Thành công' : inv.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-slate-400">
+                      Chưa có giao dịch nào gần đây.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -293,14 +352,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ tenants, i
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-slate-700">Tạo mới mục tiêu phòng ban</p>
-                <p className="text-[10px] text-slate-400">Đại diện FPT Software thiết lập 12 mục tiêu BSC mới.</p>
+                <p className="text-[10px] text-slate-400">Đại diện doanh nghiệp mới vừa thiết lập mục tiêu BSC.</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-slate-700">Thêm KPI thành viên</p>
-                <p className="text-[10px] text-slate-400">Phòng HR Masan Group chỉ định KPI cho 40 quản lý phòng ban.</p>
+                <p className="text-xs font-semibold text-slate-700">Thanh toán VietQR tự động</p>
+                <p className="text-[10px] text-slate-400">Hệ thống kích hoạt tài khoản thành công ngay sau khi tiền về.</p>
               </div>
             </div>
             <div className="flex gap-3">

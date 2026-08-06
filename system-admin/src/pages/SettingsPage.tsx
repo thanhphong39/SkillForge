@@ -8,9 +8,8 @@ interface SettingsPageProps {
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ auditLogs }) => {
   const [plans, setPlans] = useState([
-    { id: 'starter', name: 'Gói Starter', price: 3500000, usersLimit: 50, enabled: true },
-    { id: 'growth', name: 'Gói Growth', price: 8500000, usersLimit: 300, enabled: true },
-    { id: 'enterprise', name: 'Gói Enterprise', price: 16500000, usersLimit: 1000, enabled: true },
+    { id: 'basic', name: 'Gói Cơ Bản (Basic)', price: 2000000, usersLimit: '50 tài khoản', isCustom: false },
+    { id: 'custom', name: 'Gói Tùy Chỉnh (Custom)', price: 0, usersLimit: 'Không giới hạn (Theo HĐ)', isCustom: true },
   ]);
 
   const [smtp, setSmtp] = useState({
@@ -66,24 +65,35 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ auditLogs }) => {
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-400 font-semibold block mb-1">Đơn giá (VNĐ / Tháng)</label>
-                    <input
-                      type="number"
-                      value={plan.price}
-                      onChange={e => handlePlanPriceChange(plan.id, parseInt(e.target.value) || 0)}
-                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
-                    />
+                    {plan.isCustom ? (
+                      <input
+                        type="text"
+                        disabled
+                        value="Thỏa thuận theo HĐ"
+                        className="w-full text-xs font-bold px-3 py-2 bg-purple-50/50 border border-purple-100 rounded-lg text-purple-700 cursor-not-allowed"
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        value={plan.price}
+                        onChange={e => handlePlanPriceChange(plan.id, parseInt(e.target.value) || 0)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
+                      />
+                    )}
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold block mb-1">Hạn mức Nhân sự (Tối đa)</label>
+                    <label className="text-[10px] text-slate-400 font-semibold block mb-1">Hạn mức Nhân sự</label>
                     <input
-                      type="number"
+                      type="text"
                       disabled
                       value={plan.usersLimit}
-                      className="w-full text-xs px-3 py-2 bg-white/60 border border-slate-100 rounded-lg text-slate-400 cursor-not-allowed"
+                      className="w-full text-xs px-3 py-2 bg-white/60 border border-slate-100 rounded-lg text-slate-500 font-medium cursor-not-allowed"
                     />
                   </div>
                   <div className="flex justify-end">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                      plan.isCustom ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}>
                       Đang phân phối
                     </span>
                   </div>

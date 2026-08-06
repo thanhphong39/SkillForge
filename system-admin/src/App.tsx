@@ -19,12 +19,16 @@ export const App: React.FC = () => {
     kpis,
     bscs,
     auditLogs,
+    customLeads,
     login,
     logout,
     handleUpdateTenantStatus,
     handleAddTenant,
     handleAddKpi,
     handleAddBsc,
+    handleUpdateInvoiceStatus,
+    handleUpdateCustomLeadStatus,
+    handleDeleteCustomLead,
   } = useSystemAdmin();
 
   // App state
@@ -62,25 +66,27 @@ export const App: React.FC = () => {
 
   // Render Subpage content based on state
   const renderTabContent = () => {
-    if (loading && tenants.length === 0) {
+    if (loading && tenants.length === 0 && invoices.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs text-slate-500 font-semibold">Đang đồng bộ dữ liệu hệ thống...</p>
+        <div className="flex items-center justify-center py-32">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-semibold text-slate-500">Đang đồng bộ dữ liệu Hệ thống BSC SkillForge...</p>
+          </div>
         </div>
       );
     }
 
-    if (error) {
+    if (error && tenants.length === 0) {
       return (
-        <div className="bg-rose-50 border border-rose-100 p-6 rounded-2xl text-rose-800 text-xs">
-          <h4 className="font-bold mb-2">Đồng bộ thất bại</h4>
-          <p className="mb-4">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center max-w-md mx-auto my-12">
+          <p className="text-xs font-bold text-rose-700 mb-2">Không thể tải dữ liệu Hệ thống</p>
+          <p className="text-xs text-rose-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl active:scale-95 transition-transform"
+            className="px-4 py-2 bg-rose-600 text-white font-semibold text-xs rounded-xl hover:bg-rose-700 transition-colors"
           >
-            Thử lại
+            Tải lại trang
           </button>
         </div>
       );
@@ -95,10 +101,13 @@ export const App: React.FC = () => {
             tenants={tenants} 
             onUpdateTenantStatus={handleUpdateTenantStatus}
             onAddTenant={handleAddTenant}
+            customLeads={customLeads}
+            onUpdateCustomLeadStatus={handleUpdateCustomLeadStatus}
+            onDeleteCustomLead={handleDeleteCustomLead}
           />
         );
       case 'billing':
-        return <BillingRevenue invoices={invoices} />;
+        return <BillingRevenue invoices={invoices} onUpdateInvoiceStatus={handleUpdateInvoiceStatus} />;
       case 'templates':
         return (
           <TemplateMasterData 

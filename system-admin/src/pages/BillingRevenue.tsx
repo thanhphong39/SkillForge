@@ -4,13 +4,14 @@ import { Invoice } from '../types';
 
 interface BillingRevenueProps {
   invoices: Invoice[];
+  onUpdateInvoiceStatus?: (id: string, status: 'success' | 'pending' | 'failed') => void;
 }
 
 const formatVND = (value: number) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 };
 
-export const BillingRevenue: React.FC<BillingRevenueProps> = ({ invoices }) => {
+export const BillingRevenue: React.FC<BillingRevenueProps> = ({ invoices, onUpdateInvoiceStatus }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [methodFilter, setMethodFilter] = useState<string>('All');
@@ -43,6 +44,8 @@ export const BillingRevenue: React.FC<BillingRevenueProps> = ({ invoices }) => {
         return 'Cổng MoMo';
       case 'vnpay':
         return 'Cổng VNPAY';
+      case 'payos_vietqr':
+        return 'VietQR / PayOS';
       case 'bank_transfer':
         return 'Chuyển khoản Ngân hàng';
       default:
@@ -56,6 +59,8 @@ export const BillingRevenue: React.FC<BillingRevenueProps> = ({ invoices }) => {
         return 'bg-pink-50 text-pink-700 border-pink-100';
       case 'vnpay':
         return 'bg-blue-50 text-blue-700 border-blue-100';
+      case 'payos_vietqr':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
       case 'bank_transfer':
         return 'bg-slate-100 text-slate-700 border-slate-200';
       default:
@@ -189,14 +194,12 @@ export const BillingRevenue: React.FC<BillingRevenueProps> = ({ invoices }) => {
                       {inv.tenantName}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                        inv.packageType === 'Enterprise' 
-                          ? 'bg-purple-50 text-purple-700' 
-                          : inv.packageType === 'Growth' 
-                            ? 'bg-indigo-50 text-indigo-700' 
-                            : 'bg-sky-50 text-sky-700'
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        inv.packageType === 'Custom' || inv.packageType === 'Enterprise' || inv.packageType === 'Growth'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                          : 'bg-[#3AE7E1]/10 text-teal-800 border border-teal-200'
                       }`}>
-                        {inv.packageType}
+                        {inv.packageType === 'Custom' || inv.packageType === 'Enterprise' || inv.packageType === 'Growth' ? 'Gói Tùy Chỉnh' : 'Gói Cơ Bản'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-500">
@@ -214,15 +217,33 @@ export const BillingRevenue: React.FC<BillingRevenueProps> = ({ invoices }) => {
                       {inv.createdAt}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        inv.status === 'success'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : inv.status === 'pending'
-                            ? 'bg-amber-50 text-amber-700'
-                            : 'bg-rose-50 text-rose-700'
-                      }`}>
-                        {inv.status === 'success' ? 'Thành công' : inv.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
-                      </span>
+                      {onUpdateInvoiceStatus ? (
+                        <select
+                          value={inv.status}
+                          onChange={(e) => onUpdateInvoiceStatus(inv.id, e.target.value as any)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border focus:outline-none cursor-pointer ${
+                            inv.status === 'success'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : inv.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}
+                        >
+                          <option value="pending">⏳ Đang xử lý</option>
+                          <option value="success">✅ Thành công</option>
+                          <option value="failed">❌ Thất bại / Hủy</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          inv.status === 'success'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : inv.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-rose-50 text-rose-700'
+                        }`}>
+                          {inv.status === 'success' ? 'Thành công' : inv.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

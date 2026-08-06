@@ -1,5 +1,5 @@
 import api from './api';
-import { Tenant, Invoice, KpiTemplate, BscTemplate, AuditLog } from '../types';
+import { Tenant, Invoice, KpiTemplate, BscTemplate, AuditLog, CustomLead } from '../types';
 
 export interface PlanDto {
   id: string;
@@ -94,10 +94,9 @@ export interface DashboardStatsDto {
 
 // Helper functions to map DTOs to UI types
 
-function mapPlanCodeToPackageType(code: string): 'Starter' | 'Growth' | 'Enterprise' {
-  if (code === 'GROWTH') return 'Growth';
-  if (code === 'ENTERPRISE') return 'Enterprise';
-  return 'Starter';
+function mapPlanCodeToPackageType(code: string): 'Basic' | 'Custom' {
+  if (code === 'CUSTOM' || code === 'ENTERPRISE' || code === 'GROWTH') return 'Custom';
+  return 'Basic';
 }
 
 export function mapTenantDto(dto: TenantDto): Tenant {
@@ -206,8 +205,8 @@ export const systemAdminService = {
   },
 
   updateTenantStatus: async (id: string, status: 'active' | 'locked'): Promise<Tenant> => {
-    const backendStatus = status === 'active' ? 'ACTIVE' : 'INACTIVE';
-    const dto: TenantDto = await api.patch(`/sa/tenants/${id}/status`, null, {
+    const backendStatus = status === 'active' ? 'ACTIVE' : 'LOCKED';
+    const dto: TenantDto = await api.patch(`/sa/tenants/${id}/status`, { status: backendStatus }, {
       params: { status: backendStatus },
     });
     return mapTenantDto(dto);
@@ -223,7 +222,7 @@ export const systemAdminService = {
 
   updateInvoiceStatus: async (id: string, status: 'success' | 'pending' | 'failed'): Promise<Invoice> => {
     const backendStatus = status.toUpperCase();
-    const dto: InvoiceDto = await api.patch(`/sa/invoices/${id}/status`, null, {
+    const dto: InvoiceDto = await api.patch(`/sa/invoices/${id}/status`, { status: backendStatus }, {
       params: { status: backendStatus },
     });
     return mapInvoiceDto(dto);
@@ -287,4 +286,13 @@ export const systemAdminService = {
 
   updateSettings: (settings: { key: string; value: string }[]): Promise<SystemSettingDto[]> =>
     api.post('/sa/settings', { settings }),
+
+  // Custom Plan Leads
+  getCustomLeads: (): Promise<CustomLead[]> => api.get('/sa/custom-leads'),
+
+  updateCustomLeadStatus: async (id: string, status: string, dealAmount?: number): Promise<CustomLead> => {
+    return api.patch(`/sa/custom-leads/${id}/status`, { status, dealAmount: dealAmount || 0 }, { params: { status, dealAmount: dealAmount || 0 } });
+  },
+
+  deleteCustomLead: (id: string): Promise<void> => api.delete(`/sa/custom-leads/${id}`),
 };

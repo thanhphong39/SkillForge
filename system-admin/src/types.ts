@@ -3,7 +3,7 @@ export interface Tenant {
   name: string;
   logo?: string;
   registeredAt: string;
-  packageType: 'Starter' | 'Growth' | 'Enterprise';
+  packageType: 'Basic' | 'Custom' | 'Starter' | 'Growth' | 'Enterprise';
   employeeCount: number;
   status: 'active' | 'locked';
   adminName: string;
@@ -15,10 +15,10 @@ export interface Invoice {
   invoiceCode: string;
   tenantId: string;
   tenantName: string;
-  packageType: 'Starter' | 'Growth' | 'Enterprise';
+  packageType: 'Basic' | 'Custom' | 'Starter' | 'Growth' | 'Enterprise';
   cycle: 'monthly' | 'yearly';
   amount: number; // in VND
-  paymentMethod: 'momo' | 'vnpay' | 'bank_transfer';
+  paymentMethod: 'momo' | 'vnpay' | 'bank_transfer' | 'payos_vietqr' | (string & {});
   status: 'success' | 'pending' | 'failed';
   createdAt: string;
 }
@@ -48,4 +48,17 @@ export interface AuditLog {
   target: string;
   timestamp: string;
   ipAddress: string;
+}
+
+export interface CustomLead {
+  id: string;
+  companyName: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  companySize: string;
+  customRequirements: string;
+  dealAmount?: number;
+  status: 'PENDING' | 'CONTACTED' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
 }
